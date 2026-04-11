@@ -1,0 +1,78 @@
+/* ── TabNav ── */
+.tabnav {
+  border-bottom: 1px solid #e5e7eb;
+  background-color: #ffffff;
+}
+
+.tabnav__inner {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+@media (min-width: 640px) {
+  .tabnav__inner {
+    padding: 0 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .tabnav__inner {
+    padding: 0 2rem;
+  }
+}
+
+.tabnav__list {
+  display: flex;
+  gap: 0;
+  overflow-x: auto;
+  margin-bottom: -1px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.tabnav__list::-webkit-scrollbar {
+  display: none;
+}
+
+.tabnav__tab {
+  position: relative;
+  padding: 0.875rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: #9ca3af;
+  transition: color 0.2s ease;
+  font-family: inherit;
+}
+
+.tabnav__tab:hover {
+  color: #4b5563;
+}
+
+.tabnav__tab--active {
+  color: #111827;
+}
+
+.tabnav__tab-indicator {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2.5px;
+  background-color: #111827;
+  border-radius: 2px 2px 0 0;
+  animation: tabSlideIn 0.25s ease-out;
+}
+
+@keyframes tabSlideIn {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
