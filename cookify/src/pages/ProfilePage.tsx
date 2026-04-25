@@ -1,17 +1,20 @@
 import {
     useState,
-    useCallback,
     useEffect,
     useRef,
     type ChangeEvent,
     type FormEvent,
     type KeyboardEvent,
 } from 'react'
-import { Pencil, Key, LogOut, X } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Pencil, Key, LogOut, X, ArrowLeft } from 'lucide-react'
 import Header from '@/components/layout/Header'
 import { PasswordField } from '@/components/auth/AuthComponents'
 import { useAuth } from '@/components/contexts/AuthContext'
+import { useExclusions } from '@/components/hooks/useExclusions'
+import { ExclusionsSection } from '@/components/profile/ExclusionsSection'
 import { validators, AuthError } from '@/services/mockAuth'
+import '@/styles/profile.css'
 
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024 // 2 MB
 
@@ -27,6 +30,8 @@ type EditableField = 'username' | 'email'
 
 export default function ProfilePage() {
     const { user, logout, updateProfile, changePassword } = useAuth()
+    const { exclusions, add: addExclusion, remove: removeExclusion } =
+        useExclusions(user?.id)
     const fileInputRef = useRef<HTMLInputElement>(null)
 
     const [editing, setEditing] = useState<EditableField | null>(null)
@@ -62,7 +67,13 @@ export default function ProfilePage() {
         setFieldError(null)
     }
 
-    const commitEdit = useCallback(async () => {
+    /**
+     * Не useCallback — функция объявляется ниже early-return, поэтому
+     * оборачивать в hook нельзя (нарушение rules-of-hooks).
+     * EditableRow не мемоизирован — пересоздание ссылки на handler
+     * не вызовет лишних ре-рендеров.
+     */
+    const commitEdit = async () => {
         if (!editing) return
         const validator =
             editing === 'email' ? validators.email : validators.username
@@ -85,7 +96,7 @@ export default function ProfilePage() {
         } finally {
             setSaving(false)
         }
-    }, [editing, draft, user, updateProfile])
+    }
 
     const handleFieldKey = (e: KeyboardEvent<HTMLInputElement>) => {
         if (e.key === 'Enter') {
@@ -143,113 +154,138 @@ export default function ProfilePage() {
 
             <div className="profile-page">
                 <main className="profile-container" role="main">
-                    <header className="profile-header">
-                        <h1 className="profile-title">Мой профиль</h1>
-                        <button
-                            type="button"
-                            className="profile-logout"
-                            onClick={() => logout()}
-                        >
-                            <LogOut size={16} aria-hidden="true" />
-                            <span>Выйти</span>
-                        </button>
-                    </header>
+                    <Link
+                        to="/"
+                        className="profile-back"
+                        aria-label="Вернуться на главную"
+                    >
+                        <ArrowLeft size={18} aria-hidden="true" />
+                        <span>На главную</span>
+                    </Link>
 
-                    {/* ── Avatar ── */}
-                    <section className="profile-avatar-row">
-                        <div className="profile-avatar">
-                            {user.avatar ? (
-                                <img
-                                    src={user.avatar}
-                                    alt={`Аватар ${user.username}`}
-                                    className="profile-avatar__img"
-                                />
-                            ) : (
-                                <span
-                                    className="profile-avatar__initial"
-                                    aria-hidden="true"
-                                >
-                                    {initial}
-                                </span>
-                            )}
-                        </div>
+                    <div className="profile-grid">
+                        {/* ── Левая колонка: данные пользователя ── */}
+                        <div className="profile-left">
+                            <h1 className="profile-title">Мой профиль</h1>
 
-                        <div className="profile-avatar-actions">
-                            <input
-                                ref={fileInputRef}
-                                type="file"
-                                accept="image/*"
-                                hidden
-                                onChange={handleAvatarChange}
-                                aria-label="Загрузить аватар"
-                            />
-                            <button
-                                type="button"
-                                className="profile-avatar-upload"
-                                onClick={() => fileInputRef.current?.click()}
+                            <section
+                                className="profile-avatar-row"
+                                aria-label="Аватар"
                             >
-                                Загрузить фото
-                            </button>
-                            {user.avatar && (
+                                <div className="profile-avatar">
+                                    {user.avatar ? (
+                                        <img
+                                            src={user.avatar}
+                                            alt={`Аватар ${user.username}`}
+                                            className="profile-avatar__img"
+                                        />
+                                    ) : (
+                                        <span
+                                            className="profile-avatar__initial"
+                                            aria-hidden="true"
+                                        >
+                                            {initial}
+                                        </span>
+                                    )}
+                                </div>
+
+                                <div className="profile-avatar-actions">
+                                    <input
+                                        ref={fileInputRef}
+                                        type="file"
+                                        accept="image/*"
+                                        hidden
+                                        onChange={handleAvatarChange}
+                                        aria-label="Загрузить аватар"
+                                    />
+                                    <button
+                                        type="button"
+                                        className="profile-avatar-upload"
+                                        onClick={() => fileInputRef.current?.click()}
+                                    >
+                                        Загрузить фото
+                                    </button>
+                                    {user.avatar && (
+                                        <button
+                                            type="button"
+                                            className="profile-avatar-remove"
+                                            onClick={handleRemoveAvatar}
+                                        >
+                                            Удалить фото
+                                        </button>
+                                    )}
+                                    {avatarError && (
+                                        <p
+                                            className="profile-avatar-error"
+                                            role="alert"
+                                        >
+                                            {avatarError}
+                                        </p>
+                                    )}
+                                </div>
+                            </section>
+
+                            <section className="profile-fields">
+                                <EditableRow
+                                    label="Имя пользователя"
+                                    value={user.username}
+                                    isEditing={editing === 'username'}
+                                    draft={draft}
+                                    onDraftChange={setDraft}
+                                    onStart={() => startEdit('username')}
+                                    onCommit={commitEdit}
+                                    onCancel={cancelEdit}
+                                    onKey={handleFieldKey}
+                                    error={
+                                        editing === 'username' ? fieldError : null
+                                    }
+                                    saving={saving && editing === 'username'}
+                                />
+
+                                <EditableRow
+                                    label="Email"
+                                    value={user.email}
+                                    isEditing={editing === 'email'}
+                                    draft={draft}
+                                    onDraftChange={setDraft}
+                                    onStart={() => startEdit('email')}
+                                    onCommit={commitEdit}
+                                    onCancel={cancelEdit}
+                                    onKey={handleFieldKey}
+                                    error={editing === 'email' ? fieldError : null}
+                                    saving={saving && editing === 'email'}
+                                    type="email"
+                                />
+
                                 <button
                                     type="button"
-                                    className="profile-avatar-remove"
-                                    onClick={handleRemoveAvatar}
+                                    className="profile-change-password"
+                                    onClick={() => setPasswordModalOpen(true)}
                                 >
-                                    Удалить фото
+                                    <Key size={16} aria-hidden="true" />
+                                    <span>Изменить пароль</span>
                                 </button>
-                            )}
-                            {avatarError && (
-                                <p
-                                    className="profile-avatar-error"
-                                    role="alert"
+
+                                <button
+                                    type="button"
+                                    className="profile-logout"
+                                    onClick={() => logout()}
                                 >
-                                    {avatarError}
-                                </p>
-                            )}
+                                    <LogOut size={16} aria-hidden="true" />
+                                    <span>Выйти из профиля</span>
+                                </button>
+                            </section>
                         </div>
-                    </section>
 
-                    {/* ── Fields ── */}
-                    <section className="profile-fields">
-                        <EditableRow
-                            label="Имя пользователя"
-                            value={user.username}
-                            isEditing={editing === 'username'}
-                            draft={draft}
-                            onDraftChange={setDraft}
-                            onStart={() => startEdit('username')}
-                            onCommit={commitEdit}
-                            onCancel={cancelEdit}
-                            onKey={handleFieldKey}
-                            error={editing === 'username' ? fieldError : null}
-                            saving={saving && editing === 'username'}
-                        />
-
-                        <EditableRow
-                            label="Email"
-                            value={user.email}
-                            isEditing={editing === 'email'}
-                            draft={draft}
-                            onDraftChange={setDraft}
-                            onStart={() => startEdit('email')}
-                            onCommit={commitEdit}
-                            onCancel={cancelEdit}
-                            onKey={handleFieldKey}
-                            error={editing === 'email' ? fieldError : null}
-                            saving={saving && editing === 'email'}
-                            type="email"
-                        />
-
-                        <button
-                            type="button"
-                            className="profile-change-password"
-                            onClick={() => setPasswordModalOpen(true)}
-                        >
-                            <Key size={16} aria-hidden="true" />
-                            <span>Изменить пароль</span>
-                        </button>
-                    </section>
+                        {/* ── Правая колонка: Исключения ── */}
+                        <div className="profile-right">
+                            <ExclusionsSection
+                                exclusions={exclusions}
+                                onAdd={addExclusion}
+                                onRemove={removeExclusion}
+                            />
+                        </div>
+                    </div>
                 </main>
 
                 {passwordModalOpen && (

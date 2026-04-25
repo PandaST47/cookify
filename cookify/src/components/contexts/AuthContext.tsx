@@ -36,13 +36,17 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-    const [user, setUser] = useState<User | null>(null)
-    const [isReady, setIsReady] = useState(false)
+    /**
+     * Восстанавливаем сессию синхронно в инициализаторе useState —
+     * без useEffect+setState, который ESLint справедливо ругает за
+     * лишний ре-рендер. localStorage доступен синхронно в браузере.
+     */
+    const [user, setUser] = useState<User | null>(() =>
+        mockAuth.getCurrentUser(),
+    )
+    const isReady = true
 
     useEffect(() => {
-        setUser(mockAuth.getCurrentUser())
-        setIsReady(true)
-
         // Cross-tab sync: если в другой вкладке залогинились/вышли,
         // эта тоже реагирует.
         const onStorage = (e: StorageEvent) => {

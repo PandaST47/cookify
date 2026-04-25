@@ -4,9 +4,10 @@ import {
 import { createPortal } from 'react-dom'
 import {
     Search, Heart, Star, ChevronDown, ChevronUp, ArrowUp,
-    SlidersHorizontal, ArrowUpDown, ArrowRight, Check,
+    SlidersHorizontal, ArrowUpDown, ArrowRight, Check, X,
 } from 'lucide-react'
 import Header from './layout/Header'
+import { useFavorites } from './hooks/useFavorites'
 import '@/styles/cookify.css'
 
 /* ═══════════════════════════════════════════
@@ -164,7 +165,7 @@ const RECIPES: Recipe[] = [
     {
         id: '4',
         title: 'Шакшука',
-        description: 'Обладает мягкой консистенцией и ярким вкусом. Можно подавать с хрустящими сухариками и зеленью. Возьмите ароматный сыр и нежные сливки для пикатного вкуса.',
+        description: 'Сытная средиземноморская яичница в томатно-овощном соусе. Подавайте прямо со сковороды с хрустящим хлебом — идеально для бранча.',
         image: 'https://images.unsplash.com/photo-1590412200988-a436970781fa?w=600&h=400&fit=crop',
         calories: 320, protein: 16, fat: 22, carbs: 14,
         rating: 4.98,
@@ -177,7 +178,7 @@ const RECIPES: Recipe[] = [
     {
         id: '5',
         title: 'Жаркое по-деревенски с горошком',
-        description: 'Обладает мягкой консистенцией и ярким вкусом. Можно подавать с хрустящими сухариками и зеленью. Возьмите ароматный сыр и нежные сливки для пикатного вкуса.',
+        description: 'Тушёная говядина с картофелем, морковью и зелёным горошком. Готовится в одном казане, а аромат напомнит дом бабушки.',
         image: 'https://images.unsplash.com/photo-1547592180-85f173990554?w=600&h=400&fit=crop&sat=-100',
         calories: 410, protein: 22, fat: 18, carbs: 32,
         rating: 4.98,
@@ -190,7 +191,7 @@ const RECIPES: Recipe[] = [
     {
         id: '6',
         title: 'Панкейки с карамелизированным бананом',
-        description: 'Обладает мягкой консистенцией и ярким вкусом. Можно подавать с хрустящими сухариками и зеленью. Возьмите ароматный сыр и нежные сливки для пикатного вкуса.',
+        description: 'Воздушные панкейки с золотистой корочкой и сочным бананом в карамели. Лучший повод проснуться пораньше в выходной.',
         image: 'https://images.unsplash.com/photo-1528207776546-365bb710ee93?w=600&h=400&fit=crop',
         calories: 390, protein: 8, fat: 12, carbs: 62,
         rating: 4.98,
@@ -198,6 +199,123 @@ const RECIPES: Recipe[] = [
         ingredients: [
             { name: 'Мука' }, { name: 'Молоко' }, { name: 'Яйца' },
             { name: 'Бананы' }, { name: 'Сахар коричневый' }, { name: 'Масло сливочное' },
+        ],
+    },
+    {
+        id: '7',
+        title: 'Вишнёвый смузи с какао',
+        description: 'Густой смузи на йогурте с замороженной вишней и какао-крошкой. Полезный десерт без сахара, который зарядит энергией.',
+        image: 'https://images.unsplash.com/photo-1623065422902-30a2d299bbe4?w=600&h=400&fit=crop',
+        calories: 160, protein: 7, fat: 4, carbs: 26,
+        rating: 4.7,
+        tags: ['ПП', 'ЗОЖ', 'ЗАВТРАК', 'ПЕРЕКУС'],
+        ingredients: [
+            { name: 'Вишня' }, { name: 'Йогурт греческий' }, { name: 'Какао' },
+            { name: 'Банан' }, { name: 'Молоко' }, { name: 'Мёд' },
+        ],
+    },
+    {
+        id: '8',
+        title: 'Финский черничный пирог',
+        description: 'Открытый пирог на песочном тесте с густой заливкой и шапкой из спелой черники. Чуть тёплый — идеален к чаю.',
+        image: 'https://images.unsplash.com/photo-1488477181946-6428a0291777?w=600&h=400&fit=crop',
+        calories: 285, protein: 5, fat: 11, carbs: 40,
+        rating: 4.85,
+        tags: ['ВЫПЕЧКА', 'ДЕСЕРТЫ', 'ПОЛДНИК'],
+        ingredients: [
+            { name: 'Мука' }, { name: 'Сливочное масло' }, { name: 'Сахар' },
+            { name: 'Черника' }, { name: 'Сметана' }, { name: 'Яйца' },
+        ],
+    },
+    {
+        id: '9',
+        title: 'Тост с авокадо и яйцом',
+        description: 'Цельнозерновой хлеб, пюре из авокадо с лимонным соком и яйцо-пашот. Пять минут — и завтрак готов.',
+        image: 'https://images.unsplash.com/photo-1525351484163-7529414344d8?w=600&h=400&fit=crop',
+        calories: 280, protein: 12, fat: 16, carbs: 22,
+        rating: 4.6,
+        tags: ['ПП', 'ЗОЖ', 'ЗАВТРАК', 'БЫСТРО'],
+        ingredients: [
+            { name: 'Хлеб цельнозерновой' }, { name: 'Авокадо' }, { name: 'Яйцо' },
+            { name: 'Лимон' }, { name: 'Перец чили' }, { name: 'Соль' },
+        ],
+    },
+    {
+        id: '10',
+        title: 'Гречотто с грибами',
+        description: 'Гречка по технологии ризотто — томится с обжаренными шампиньонами, луком и пармезаном. Сытно и без глютена.',
+        image: 'https://images.unsplash.com/photo-1476124369491-e7addf5db371?w=600&h=400&fit=crop',
+        calories: 310, protein: 11, fat: 9, carbs: 45,
+        rating: 4.75,
+        tags: ['ПП', 'РУССКАЯ КУХНЯ', 'ОБЕД', 'УЖИН', 'БЕЗ ГЛЮТЕНА'],
+        ingredients: [
+            { name: 'Гречка' }, { name: 'Шампиньоны' }, { name: 'Лук' },
+            { name: 'Пармезан' }, { name: 'Бульон овощной' }, { name: 'Тимьян' },
+        ],
+    },
+    {
+        id: '11',
+        title: 'Лосось на пару с рисом',
+        description: 'Сочный лосось на пару с лимоном и тимьяном, подаётся на подушке из ароматного жасминового риса. Ужин премиум-класса.',
+        image: 'https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=600&h=400&fit=crop',
+        calories: 360, protein: 32, fat: 14, carbs: 28,
+        rating: 4.92,
+        tags: ['ПП', 'ВЫСОКОБЕЛКОВОЕ', 'УЖИН'],
+        ingredients: [
+            { name: 'Лосось' }, { name: 'Рис жасмин' }, { name: 'Лимон' },
+            { name: 'Тимьян' }, { name: 'Оливковое масло' }, { name: 'Соль' },
+        ],
+    },
+    {
+        id: '12',
+        title: 'Боул с киноа и нутом',
+        description: 'Тёплый боул с киноа, печёным нутом, овощами и тахинной заправкой. Сбалансированно, вкусно и веган-френдли.',
+        image: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=600&h=400&fit=crop',
+        calories: 340, protein: 15, fat: 12, carbs: 48,
+        rating: 4.65,
+        tags: ['ВЕГАН', 'ЗОЖ', 'ОБЕД'],
+        ingredients: [
+            { name: 'Киноа' }, { name: 'Нут' }, { name: 'Шпинат' },
+            { name: 'Морковь' }, { name: 'Тахини' }, { name: 'Лимон' },
+        ],
+    },
+    {
+        id: '13',
+        title: 'Тыквенный крем-суп с имбирём',
+        description: 'Бархатный суп из запечённой тыквы с имбирём и кокосовыми сливками. Согревает в холодный вечер.',
+        image: 'https://images.unsplash.com/photo-1476718406336-bb5a9690ee2a?w=600&h=400&fit=crop',
+        calories: 195, protein: 4, fat: 8, carbs: 28,
+        rating: 4.8,
+        tags: ['ВЕГАН', 'ОБЕД', 'УЖИН', 'ПЕРВЫЕ БЛЮДА'],
+        ingredients: [
+            { name: 'Тыква' }, { name: 'Имбирь' }, { name: 'Кокосовые сливки' },
+            { name: 'Лук' }, { name: 'Чеснок' }, { name: 'Бульон' },
+        ],
+    },
+    {
+        id: '14',
+        title: 'Сырники с малиной',
+        description: 'Нежные сырники из творога 5% с ванилью, подача с малиновым соусом и сметаной. Классический завтрак выходного дня.',
+        image: 'https://images.unsplash.com/photo-1584949514490-73fc2b3f9d6d?w=600&h=400&fit=crop',
+        calories: 245, protein: 18, fat: 9, carbs: 24,
+        rating: 4.88,
+        tags: ['ПП', 'РУССКАЯ КУХНЯ', 'ЗАВТРАК'],
+        ingredients: [
+            { name: 'Творог' }, { name: 'Яйцо' }, { name: 'Мука' },
+            { name: 'Малина' }, { name: 'Сметана' }, { name: 'Ваниль' },
+        ],
+    },
+    {
+        id: '15',
+        title: 'Курица терияки с овощами',
+        description: 'Куриное филе в густом соусе терияки с обжаренными овощами и кунжутом. Подача на рисе — азиатская классика дома.',
+        image: 'https://images.unsplash.com/photo-1604908554007-3a5e8b9d4d3a?w=600&h=400&fit=crop',
+        calories: 380, protein: 28, fat: 11, carbs: 42,
+        rating: 4.7,
+        tags: ['АЗИАТСКАЯ КУХНЯ', 'УЖИН', 'ВЫСОКОБЕЛКОВОЕ'],
+        ingredients: [
+            { name: 'Куриное филе' }, { name: 'Соус терияки' }, { name: 'Перец' },
+            { name: 'Брокколи' }, { name: 'Кунжут' }, { name: 'Рис' },
         ],
     },
 ]
@@ -309,7 +427,7 @@ const IngredientsDropdown = memo(function IngredientsDropdown({
 })
 
 /* ═══════════════════════════════════════════
-   RecipeCard — split layout (image top + white body)
+   RecipeCard — split layout (image top + body)
    ═══════════════════════════════════════════ */
 interface RecipeCardProps {
     recipe: Recipe
@@ -331,6 +449,8 @@ const RecipeCard = memo(function RecipeCard({
                         alt={recipe.title}
                         loading="lazy"
                         decoding="async"
+                        width={380}
+                        height={154}
                         onError={() => setImgErr(true)}
                         className="ck-card__img"
                     />
@@ -533,6 +653,89 @@ const FilterSidebar = memo(function FilterSidebar({
 })
 
 /* ═══════════════════════════════════════════
+   ConfirmModal — портал-диалог с фокус-локом и Esc-close.
+   Используется при удалении из избранного.
+   ═══════════════════════════════════════════ */
+interface ConfirmModalProps {
+    title: string
+    description: string
+    confirmLabel: string
+    cancelLabel: string
+    onConfirm: () => void
+    onCancel: () => void
+}
+
+const ConfirmModal = memo(function ConfirmModal({
+    title, description, confirmLabel, cancelLabel, onConfirm, onCancel,
+}: ConfirmModalProps) {
+    const dialogRef = useRef<HTMLDivElement>(null)
+
+    useEffect(() => {
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') onCancel()
+        }
+        document.addEventListener('keydown', onKey)
+        const prev = document.body.style.overflow
+        document.body.style.overflow = 'hidden'
+        // фокусируем «Отмена» по умолчанию — безопасный выбор
+        dialogRef.current?.querySelector<HTMLButtonElement>('[data-autofocus]')?.focus()
+        return () => {
+            document.removeEventListener('keydown', onKey)
+            document.body.style.overflow = prev
+        }
+    }, [onCancel])
+
+    return createPortal(
+        <div
+            className="ck-confirm-backdrop"
+            role="presentation"
+            onClick={onCancel}
+        >
+            <div
+                ref={dialogRef}
+                className="ck-confirm"
+                role="alertdialog"
+                aria-modal="true"
+                aria-labelledby="ck-confirm-title"
+                aria-describedby="ck-confirm-desc"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <button
+                    type="button"
+                    className="ck-confirm__close"
+                    onClick={onCancel}
+                    aria-label="Закрыть диалог"
+                >
+                    <X size={18} aria-hidden="true" />
+                </button>
+
+                <h2 id="ck-confirm-title" className="ck-confirm__title">{title}</h2>
+                <p id="ck-confirm-desc" className="ck-confirm__desc">{description}</p>
+
+                <div className="ck-confirm__actions">
+                    <button
+                        type="button"
+                        className="ck-confirm__btn ck-confirm__btn--ghost"
+                        onClick={onCancel}
+                        data-autofocus
+                    >
+                        {cancelLabel}
+                    </button>
+                    <button
+                        type="button"
+                        className="ck-confirm__btn ck-confirm__btn--danger"
+                        onClick={onConfirm}
+                    >
+                        {confirmLabel}
+                    </button>
+                </div>
+            </div>
+        </div>,
+        document.body,
+    )
+})
+
+/* ═══════════════════════════════════════════
    CookifyApp
    ═══════════════════════════════════════════ */
 export default function CookifyApp() {
@@ -543,9 +746,11 @@ export default function CookifyApp() {
     const [sortOpen, setSortOpen] = useState(false)
     const [sortBy, setSortBy] = useState<SortId>('popular')
     const [selectedFilters, setSelectedFilters] = useState<Record<string, string[]>>({})
-    const [favorites, setFavorites] = useState<Set<string>>(new Set())
+    const { favorites, add: addFav, remove: removeFav } = useFavorites()
     const [cooked] = useState<Set<string>>(new Set())
     const [showScrollTop, setShowScrollTop] = useState(false)
+    /** id рецепта, который пользователь хочет удалить из избранного — рендерим ConfirmModal. */
+    const [pendingUnfav, setPendingUnfav] = useState<string | null>(null)
 
     // scroll-to-top visibility (passive listener для производительности)
     useEffect(() => {
@@ -561,21 +766,35 @@ export default function CookifyApp() {
                 ? current.filter((id) => id !== optionId)
                 : [...current, optionId]
             if (next.length === 0) {
-                const { [groupId]: _, ...rest } = prev
+                // вычистили группу полностью — удаляем ключ, чтобы
+                // activeFiltersList не содержал пустых entries
+                const rest = { ...prev }
+                delete rest[groupId]
                 return rest
             }
             return { ...prev, [groupId]: next }
         })
     }, [])
 
-    const toggleFavorite = useCallback((id: string) => {
-        setFavorites((prev) => {
-            const next = new Set(prev)
-            if (next.has(id)) next.delete(id)
-            else next.add(id)
-            return next
-        })
-    }, [])
+    /**
+     * Клик по сердечку:
+     * — добавление в избранное → сразу же
+     * — удаление из избранного → сначала подтверждение в модалке
+     */
+    const handleToggleFavorite = useCallback((id: string) => {
+        if (favorites.has(id)) {
+            setPendingUnfav(id)
+        } else {
+            addFav(id)
+        }
+    }, [favorites, addFav])
+
+    const confirmUnfavorite = useCallback(() => {
+        if (pendingUnfav) removeFav(pendingUnfav)
+        setPendingUnfav(null)
+    }, [pendingUnfav, removeFav])
+
+    const cancelUnfavorite = useCallback(() => setPendingUnfav(null), [])
 
     const activeFiltersList = useMemo(() => {
         const list: { groupId: string; optionId: string; label: string }[] = []
@@ -624,6 +843,10 @@ export default function CookifyApp() {
         window.scrollTo({ top: 0, behavior: 'smooth' })
     }, [])
 
+    /** Показывать тулбар поиска только на табе "Рекомендации" — на "Избранное"
+     *  и "Приготовлено" остаётся компактный поиск без CTA-кнопки (как на Figma). */
+    const isRecommendations = activeTab === 'recommendations'
+
     return (
         <div className="ck-page">
             <Header search={search} onSearchChange={setSearch} />
@@ -664,31 +887,37 @@ export default function CookifyApp() {
                     />
 
                     <section className="ck-recipes" aria-label="Рецепты">
-                        <div className="ck-toolbar">
-                            <div className="ck-toolbar__search">
-                                <Search size={18} className="ck-toolbar__search-icon" aria-hidden="true" />
-                                <input
-                                    type="search"
-                                    value={recipeSearch}
-                                    onChange={(e) => setRecipeSearch(e.target.value)}
-                                    placeholder="Поиск рецептов"
-                                    className="ck-toolbar__search-input"
-                                    aria-label="Поиск рецептов"
-                                    autoComplete="off"
-                                />
+                        {isRecommendations && (
+                            <div className="ck-toolbar">
+                                <div className="ck-toolbar__search">
+                                    <Search size={18} className="ck-toolbar__search-icon" aria-hidden="true" />
+                                    <input
+                                        type="search"
+                                        value={recipeSearch}
+                                        onChange={(e) => setRecipeSearch(e.target.value)}
+                                        placeholder="Поиск рецептов"
+                                        className="ck-toolbar__search-input"
+                                        aria-label="Поиск рецептов"
+                                        autoComplete="off"
+                                    />
+                                </div>
+                                <button
+                                    type="button"
+                                    className="ck-upload-btn"
+                                    aria-label="Загрузить рецепт"
+                                >
+                                    Загрузить рецепт
+                                    <ArrowRight size={16} aria-hidden="true" />
+                                </button>
                             </div>
-                            <button
-                                type="button"
-                                className="ck-upload-btn"
-                                aria-label="Загрузить рецепт"
-                            >
-                                Загрузить рецепт
-                                <ArrowRight size={16} aria-hidden="true" />
-                            </button>
-                        </div>
+                        )}
 
                         <div className="ck-title-row">
-                            <h1 className="ck-heading">Что приготовим сегодня?</h1>
+                            <h1 className="ck-heading">
+                                {activeTab === 'favorites' ? 'Избранное'
+                                    : activeTab === 'cooked' ? 'Приготовлено'
+                                        : 'Что приготовим сегодня?'}
+                            </h1>
                             <div className="ck-controls">
                                 <button
                                     type="button"
@@ -702,6 +931,20 @@ export default function CookifyApp() {
                                         <span className="ck-pill__badge">{activeFiltersList.length}</span>
                                     )}
                                 </button>
+                                {!isRecommendations && (
+                                    <div className="ck-toolbar__search ck-toolbar__search--inline">
+                                        <Search size={16} className="ck-toolbar__search-icon" aria-hidden="true" />
+                                        <input
+                                            type="search"
+                                            value={recipeSearch}
+                                            onChange={(e) => setRecipeSearch(e.target.value)}
+                                            placeholder="Поиск рецептов"
+                                            className="ck-toolbar__search-input"
+                                            aria-label="Поиск рецептов"
+                                            autoComplete="off"
+                                        />
+                                    </div>
+                                )}
                                 <div className="ck-sort">
                                     <button
                                         type="button"
@@ -737,14 +980,16 @@ export default function CookifyApp() {
                                         </>
                                     )}
                                 </div>
-                                <button
-                                    type="button"
-                                    className="ck-pill ck-pill--desktop"
-                                    aria-label="Фильтр по ингредиентам"
-                                >
-                                    Ингредиенты
-                                    <SlidersHorizontal size={14} aria-hidden="true" />
-                                </button>
+                                {isRecommendations && (
+                                    <button
+                                        type="button"
+                                        className="ck-pill ck-pill--desktop"
+                                        aria-label="Фильтр по ингредиентам"
+                                    >
+                                        Ингредиенты
+                                        <SlidersHorizontal size={14} aria-hidden="true" />
+                                    </button>
+                                )}
                             </div>
                         </div>
 
@@ -791,7 +1036,7 @@ export default function CookifyApp() {
                                     <RecipeCard
                                         recipe={recipe}
                                         isFavorite={favorites.has(recipe.id)}
-                                        onToggleFavorite={toggleFavorite}
+                                        onToggleFavorite={handleToggleFavorite}
                                     />
                                 </div>
                             ))}
@@ -809,6 +1054,17 @@ export default function CookifyApp() {
                 >
                     <ArrowUp size={20} aria-hidden="true" />
                 </button>
+            )}
+
+            {pendingUnfav && (
+                <ConfirmModal
+                    title="Удалить из избранного"
+                    description="Хотите удалить рецепт из избранного? Отменить это действие будет невозможно."
+                    cancelLabel="Отмена"
+                    confirmLabel="Удалить"
+                    onCancel={cancelUnfavorite}
+                    onConfirm={confirmUnfavorite}
+                />
             )}
         </div>
     )
