@@ -2,10 +2,18 @@
    Общие типы проекта Cookify.
    Всё в одном файле — в проекте такого размера нет смысла
    дробить на auth.ts / recipes.ts / etc.
-
-   Если у тебя остался legacy-файл types/auth.ts — его можно
-   удалить: все типы теперь лежат здесь.
    ═══════════════════════════════════════════════════════════ */
+
+/* ── Filters ── */
+export type FilterGroupId =
+    | 'mealType'
+    | 'occasions'
+    | 'health'
+    | 'cuisine'
+    | 'taste'
+
+/** ID-набор тегов рецепта по группам — используется фильтрацией. */
+export type RecipeFilters = Record<FilterGroupId, string[]>
 
 /* ── Recipes ── */
 export interface Recipe {
@@ -17,22 +25,26 @@ export interface Recipe {
     protein: number
     fat: number
     carbs: number
+    /** Стартовый средний рейтинг (seed). Рантайм-средний — в `useRatings`. */
     rating: number
-    tags: string[]
-    ingredients: Ingredient[]
+    /** Стартовое кол-во оценок (seed). */
+    ratingCount: number
     cookTime: number
-    hasAllIngredients?: boolean
-    isSimilarToCooked?: boolean
+    /** Видимые на карточке теги (RU, ВЕРХНИМ регистром). */
+    displayTags: string[]
+    /** Машиночитаемые ID-теги по группам — drives `applyFilters`. */
+    filters: RecipeFilters
+    ingredients: Ingredient[]
 }
 
 export interface Ingredient {
     name: string
-    amount: string
-    unit: string
+    amount?: string
+    unit?: string
 }
 
 export interface FilterGroup {
-    id: string
+    id: FilterGroupId
     title: string
     options: FilterOption[]
     isOpen: boolean
@@ -44,7 +56,7 @@ export interface FilterOption {
     checked: boolean
 }
 
-export type TabId = 'recommendations' | 'favorites' | 'cooked' | 'myProducts'
+export type TabId = 'recommendations' | 'favorites' | 'cooked'
 
 export interface Tab {
     id: TabId

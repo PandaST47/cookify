@@ -22,3 +22,16 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+.env
+dist/
+
+# Claude / AI tooling
+.claude/
+**/.claude/
+
+# Windows reserved device names / accidental artifacts
+nul
+NUL
+**/nul
+**/NUL

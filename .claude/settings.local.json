@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(extract-text 'C:\\\\Users\\\\Кирилл\\\\Downloads\\\\Требования к дизайну.docx')",
+      "Bash(npx tsc *)",
+      "Bash(echo \"exit=$?\")",
+      "Bash(npx vite *)",
+      "Bash(npm run *)",
+      "mcp__Claude_in_Chrome__tabs_context_mcp",
+      "Bash(tasklist)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(echo \"tsc=$?\")",
+      "Bash(echo \"build=$?\")"
+    ]
+  }
+}

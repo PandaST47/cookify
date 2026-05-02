@@ -1251,6 +1251,426 @@
     background-color: rgba(209, 74, 61, 0.08);
 }
 
+/* ══════════════════════════════════════
+   COOK BUTTON — на карточке (отметить как приготовленное)
+   ══════════════════════════════════════ */
+.ck-card__cook-btn {
+    margin-top: 0.5rem;
+    align-self: stretch;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    padding: 0.5rem 0.875rem;
+    background-color: transparent;
+    border: 1.5px solid var(--ck-line-strong);
+    border-radius: 9999px;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: var(--ck-ink);
+    cursor: pointer;
+    font-family: inherit;
+    transition: background-color 0.2s ease, border-color 0.2s ease,
+        color 0.2s ease, transform 0.15s ease;
+}
+
+.ck-card__cook-btn:hover:not(:disabled) {
+    background-color: var(--ck-green);
+    border-color: var(--ck-green);
+    color: #fff;
+    transform: translateY(-1px);
+}
+
+.ck-card__cook-btn:active { transform: scale(0.98); }
+
+.ck-card__cook-btn--done {
+    background-color: var(--ck-green);
+    border-color: var(--ck-green);
+    color: #fff;
+    cursor: default;
+}
+
+.ck-card__cook-btn:disabled { cursor: default; }
+
+.ck-card__time {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--ck-muted);
+}
+
+.ck-card__footer {
+    justify-content: space-between;
+}
+
+/* ══════════════════════════════════════
+   COOKED LIST — отдельный layout под таб «Приготовлено»
+   3 колонки (карточка | оценка | агрегат+удалить) на десктопе,
+   на мобильном — стек.
+   ══════════════════════════════════════ */
+.ck-cooked-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.ck-cooked-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+    padding: 1.25rem;
+    background-color: var(--ck-surface);
+    border: 1.5px solid var(--ck-line);
+    border-radius: 18px;
+    box-shadow:
+        0 1px 3px rgba(44, 22, 5, 0.04),
+        0 1px 2px rgba(44, 22, 5, 0.03);
+    transition: box-shadow 0.3s ease, border-color 0.2s ease;
+}
+
+.ck-cooked-row:hover {
+    box-shadow: 0 8px 24px rgba(44, 22, 5, 0.08);
+    border-color: var(--ck-line-strong);
+}
+
+@media (min-width: 900px) {
+    .ck-cooked-row {
+        grid-template-columns: minmax(280px, 380px) 1fr minmax(180px, 220px);
+        gap: 1.75rem;
+        align-items: stretch;
+    }
+}
+
+.ck-cooked-row__card {
+    /* карточка отрисовывается стандартным RecipeCard, но без cook-кнопки */
+    display: flex;
+}
+
+.ck-cooked-row__card .ck-card { width: 100%; }
+
+.ck-cooked-row__rate,
+.ck-cooked-row__agg {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+    justify-content: center;
+}
+
+@media (min-width: 900px) {
+    .ck-cooked-row__agg {
+        border-left: 1px solid var(--ck-line);
+        padding-left: 1.5rem;
+    }
+}
+
+.ck-cooked-row__rate-title {
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--ck-ink);
+    margin: 0;
+    letter-spacing: -0.01em;
+}
+
+.ck-cooked-row__rate-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1rem;
+}
+
+.ck-cooked-row__btn {
+    padding: 0.5rem 1rem;
+    background-color: var(--ck-surface);
+    border: 1.5px solid var(--ck-ink);
+    border-radius: 9999px;
+    font-family: inherit;
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--ck-ink);
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease, transform 0.15s ease;
+}
+
+.ck-cooked-row__btn:hover:not(:disabled) {
+    background-color: var(--ck-ink);
+    color: var(--ck-bg);
+    transform: translateY(-1px);
+}
+
+.ck-cooked-row__btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.ck-cooked-row__btn:active:not(:disabled) { transform: scale(0.98); }
+
+.ck-cooked-row__thanks {
+    margin: 0;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--ck-green);
+}
+
+.ck-cooked-row__agg-val {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    color: var(--ck-accent);
+}
+
+.ck-cooked-row__agg-val > svg {
+    align-self: center;
+    fill: currentColor;
+}
+
+.ck-cooked-row__agg-num {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: var(--ck-ink);
+}
+
+.ck-cooked-row__agg-count {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--ck-muted);
+}
+
+.ck-cooked-row__delete {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5rem 1rem;
+    background-color: transparent;
+    border: 1.5px solid var(--ck-line-strong);
+    border-radius: 9999px;
+    font-family: inherit;
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--ck-ink);
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease,
+        color 0.2s ease, transform 0.15s ease;
+    margin-top: 0.5rem;
+}
+
+.ck-cooked-row__delete:hover {
+    background-color: rgba(209, 74, 61, 0.08);
+    border-color: #D14A3D;
+    color: #D14A3D;
+    transform: translateY(-1px);
+}
+
+/* ══════════════════════════════════════
+   STAR RATING — интерактивная шкала 1..5
+   ══════════════════════════════════════ */
+.ck-stars {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.125rem;
+    border-radius: 8px;
+    padding: 0.125rem;
+    outline: none;
+}
+
+.ck-stars:focus-visible {
+    box-shadow: 0 0 0 3px var(--ck-accent-soft);
+}
+
+.ck-stars__btn {
+    background: none;
+    border: none;
+    padding: 0.125rem;
+    cursor: pointer;
+    color: var(--ck-line-strong);
+    line-height: 0;
+    transition: color 0.15s ease, transform 0.15s ease;
+}
+
+.ck-stars--readonly .ck-stars__btn {
+    cursor: default;
+}
+
+.ck-stars__btn:hover:not(:disabled) {
+    transform: scale(1.1);
+}
+
+.ck-stars__btn--on {
+    color: var(--ck-accent);
+}
+
+.ck-stars__btn:disabled {
+    cursor: default;
+}
+
+/* ══════════════════════════════════════
+   CHIPS — расширения для accent / muted
+   ══════════════════════════════════════ */
+.ck-chip--accent {
+    background-color: var(--ck-accent);
+}
+
+.ck-chip--muted {
+    background-color: var(--ck-surface-2);
+    color: var(--ck-muted);
+    border: 1px dashed var(--ck-line-strong);
+    cursor: default;
+}
+
+/* ══════════════════════════════════════
+   INGREDIENTS MODAL — «Кнопка Ингредиенты» из ТЗ
+   Использует ту же базу .ck-confirm + расширение --wide
+   ══════════════════════════════════════ */
+.ck-confirm--wide {
+    max-width: 540px;
+}
+
+.ck-ingmodal__hint {
+    margin: 0 0 0.5rem;
+    font-size: 0.8125rem;
+    color: var(--ck-muted-2);
+    font-style: italic;
+}
+
+.ck-ingmodal__input {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    background-color: var(--ck-surface-2);
+    border: 1.5px solid var(--ck-line);
+    border-radius: 9999px;
+    font-size: 0.9375rem;
+    font-family: inherit;
+    color: var(--ck-ink);
+    margin-bottom: 1rem;
+    transition: all 0.25s ease;
+}
+
+.ck-ingmodal__input:focus {
+    outline: none;
+    border-color: var(--ck-accent);
+    background-color: var(--ck-surface);
+    box-shadow: 0 0 0 3px var(--ck-accent-soft);
+}
+
+.ck-ingmodal__subtitle {
+    margin: 0.5rem 0 0.625rem;
+    font-size: 0.9375rem;
+    font-weight: 800;
+    color: var(--ck-ink);
+}
+
+.ck-ingmodal__empty {
+    margin: 0 0 1rem;
+    font-size: 0.8125rem;
+    color: var(--ck-muted-2);
+    font-style: italic;
+}
+
+.ck-ingmodal__list {
+    list-style: none;
+    margin: 0 0 1rem;
+    padding: 0;
+    max-height: 240px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+}
+
+.ck-ingmodal__opt {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 0.375rem 0;
+    cursor: pointer;
+    user-select: none;
+}
+
+.ck-ingmodal__opt-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.ck-ingmodal__opt-box {
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    border: 2px solid var(--ck-line-strong);
+    background-color: var(--ck-surface);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.ck-ingmodal__opt-box--on {
+    background-color: var(--ck-accent);
+    border-color: var(--ck-accent);
+}
+
+.ck-ingmodal__opt-input:focus-visible + .ck-ingmodal__opt-box {
+    outline: 2px solid var(--ck-accent);
+    outline-offset: 2px;
+}
+
+.ck-ingmodal__opt-label {
+    font-size: 0.9375rem;
+    color: var(--ck-ink);
+    font-weight: 600;
+}
+
+.ck-ingmodal__suggest {
+    margin: 0 0 1rem;
+    font-size: 0.875rem;
+    border-top: 1px dashed var(--ck-line);
+    padding-top: 0.75rem;
+}
+
+.ck-ingmodal__suggest summary {
+    cursor: pointer;
+    font-weight: 700;
+    color: var(--ck-muted);
+    padding: 0.25rem 0;
+    user-select: none;
+}
+
+.ck-ingmodal__suggest summary:hover {
+    color: var(--ck-ink);
+}
+
+.ck-ingmodal__suggest[open] summary {
+    color: var(--ck-ink);
+    margin-bottom: 0.5rem;
+}
+
+.ck-ingmodal__footnote {
+    margin: 0 0 1rem;
+    font-size: 0.8125rem;
+    color: var(--ck-muted);
+    line-height: 1.5;
+}
+
+.ck-confirm__btn--primary {
+    color: #fff;
+    background-color: var(--ck-accent);
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+}
+
+.ck-confirm__btn--primary:hover {
+    background-color: var(--ck-accent-hover);
+}
+
 /* Респектим reduced motion */
 @media (prefers-reduced-motion: reduce) {
     *,

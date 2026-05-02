@@ -1,337 +1,38 @@
 import {
     useState, useCallback, useMemo, useRef, useEffect, useLayoutEffect, memo,
+    type KeyboardEvent as ReactKeyboardEvent,
 } from 'react'
 import { createPortal } from 'react-dom'
 import {
     Search, Heart, Star, ChevronDown, ChevronUp, ArrowUp,
-    SlidersHorizontal, ArrowUpDown, ArrowRight, Check, X,
+    SlidersHorizontal, ArrowUpDown, ArrowRight, Check, X, Trash2, Plus,
 } from 'lucide-react'
 import Header from './layout/Header'
 import { useFavorites } from './hooks/useFavorites'
+import { useExclusions } from './hooks/useExclusions'
+import { useCooked } from './hooks/useCooked'
+import { useRatings } from './hooks/useRatings'
+import { useFilteredRecipes } from './hooks/useFilteredRecipes'
+import { useAuth } from './contexts/AuthContext'
+import {
+    recipes as ALL_RECIPES,
+    filterGroups as FILTER_GROUPS,
+    sortOptions as SORT_OPTIONS,
+    allIngredientNames as ALL_INGREDIENTS,
+    type SortId,
+} from '@/data/recipes'
+import type { FilterGroupId, Ingredient, Recipe, TabId } from '@/types'
 import '@/styles/cookify.css'
 
-/* ═══════════════════════════════════════════
-   TYPES
-   ═══════════════════════════════════════════ */
-interface Ingredient {
-    name: string
-    amount?: string
-    unit?: string
-}
-
-interface Recipe {
-    id: string
-    title: string
-    description: string
-    image: string
-    calories: number
-    protein: number
-    fat: number
-    carbs: number
-    rating: number
-    tags: string[]
-    ingredients: Ingredient[]
-}
-
-interface FilterOption {
-    id: string
-    label: string
-}
-
-interface FilterGroupData {
-    id: string
-    title: string
-    showMore?: boolean
-    options: FilterOption[]
-}
-
-type SortId = 'popular' | 'rating' | 'calories_asc' | 'calories_desc'
-type TabId = 'recommendations' | 'favorites' | 'cooked'
-
-/* ═══════════════════════════════════════════
-   DATA — matches Figma reference
-   ═══════════════════════════════════════════ */
 const TABS: { id: TabId; label: string }[] = [
     { id: 'recommendations', label: 'Рекомендации' },
     { id: 'favorites', label: 'Избранное' },
     { id: 'cooked', label: 'Приготовлено' },
 ]
 
-const FILTER_GROUPS: FilterGroupData[] = [
-    {
-        id: 'mealType',
-        title: 'Время приёма',
-        options: [
-            { id: 'breakfast', label: 'Завтрак' },
-            { id: 'lunch', label: 'Обед' },
-            { id: 'dinner', label: 'Ужин' },
-            { id: 'snack', label: 'Перекус' },
-            { id: 'tea', label: 'Полдник' },
-        ],
-    },
-    {
-        id: 'occasions',
-        title: 'Праздники',
-        showMore: true,
-        options: [
-            { id: 'easter', label: 'Пасха' },
-            { id: 'maslenitsa', label: 'Масленица' },
-            { id: 'birthday', label: 'День рождения' },
-            { id: 'newyear', label: 'Новый год' },
-        ],
-    },
-    {
-        id: 'health',
-        title: 'Особое питание',
-        showMore: true,
-        options: [
-            { id: 'weightLoss', label: 'Похудение' },
-            { id: 'healthy', label: 'ЗОЖ' },
-            { id: 'highProtein', label: 'Высокобелковое' },
-            { id: 'lowCarb', label: 'Низкоуглеводное' },
-            { id: 'vegetarian', label: 'Вегетарианство' },
-            { id: 'vegan', label: 'Веганство' },
-            { id: 'noSugar', label: 'Без сахара' },
-            { id: 'noGluten', label: 'Безглютеновое' },
-            { id: 'noLactose', label: 'Безлактозное' },
-            { id: 'other', label: 'Другое' },
-        ],
-    },
-    {
-        id: 'cuisine',
-        title: 'Национальные кухни',
-        options: [
-            { id: 'italian', label: 'Итальянская' },
-            { id: 'georgian', label: 'Грузинская' },
-            { id: 'russian', label: 'Русская' },
-            { id: 'indian', label: 'Индийская' },
-        ],
-    },
-    {
-        id: 'taste',
-        title: 'Вкус',
-        options: [
-            { id: 'sour', label: 'Кислое' },
-            { id: 'sweet', label: 'Сладкое' },
-            { id: 'spicy', label: 'Острое' },
-            { id: 'salty', label: 'Солёное' },
-            { id: 'bitter', label: 'Горькое' },
-        ],
-    },
-]
-
-const RECIPES: Recipe[] = [
-    {
-        id: '1',
-        title: 'Сырный крем-суп',
-        description: 'Обладает мягкой консистенцией и ярким вкусом. Можно подавать с хрустящими сухариками и зеленью. Возьмите ароматный сыр и нежные сливки для пикантного вкуса.',
-        image: 'https://images.unsplash.com/photo-1547592166-23ac45744acd?w=600&h=400&fit=crop',
-        calories: 173, protein: 5, fat: 13, carbs: 10,
-        rating: 4.98,
-        tags: ['ПП', 'БЕЗ ЛУКА', 'ГЛЮТЕН', 'УЖИН', 'ОБЕД', 'ПЕРВЫЕ БЛЮДА'],
-        ingredients: [
-            { name: 'Вода' }, { name: 'Картофель' }, { name: 'Куриное филе' },
-            { name: 'Сливки 15% жирности' }, { name: 'Сливочный сыр' },
-            { name: 'Смесь перцев' }, { name: 'Соль' }, { name: 'Чеснок' },
-            { name: 'Травы' }, { name: 'Чесночные гренки' },
-        ],
-    },
-    {
-        id: '2',
-        title: 'Салат Цезарь с креветками',
-        description: 'Для «Цезаря» по классическому рецепту с креветками понадобятся, помимо морепродукта, яйца, сухарики из белого хлеба, листья салата романо, помидоры черри. Для тех, кто следит за фигурой.',
-        image: 'https://images.unsplash.com/photo-1546793665-c74683f339c1?w=600&h=400&fit=crop',
-        calories: 250, protein: 18, fat: 14, carbs: 12,
-        rating: 4.4,
-        tags: ['ПП', 'АМЕРИКАНСКАЯ КУХНЯ', 'УЖИН', 'ОБЕД'],
-        ingredients: [
-            { name: 'Креветки' }, { name: 'Салат романо' }, { name: 'Сухарики' },
-            { name: 'Помидоры черри' }, { name: 'Пармезан' }, { name: 'Соус Цезарь' },
-        ],
-    },
-    {
-        id: '3',
-        title: 'Томатный суп с базиликом',
-        description: 'Обладает мягкой консистенцией и ярким вкусом. Можно подавать с хрустящими сухариками и зеленью. Возьмите ароматный сыр и нежные сливки для пикантного вкуса.',
-        image: 'https://images.unsplash.com/photo-1547592180-85f173990554?w=600&h=400&fit=crop',
-        calories: 180, protein: 4, fat: 9, carbs: 18,
-        rating: 4.98,
-        tags: ['ПП', 'БЕЗ ЛУКА', 'ГЛЮТЕН', 'УЖИН', 'ОБЕД', 'ПЕРВЫЕ БЛЮДА'],
-        ingredients: [
-            { name: 'Помидоры' }, { name: 'Базилик' }, { name: 'Сливки' },
-            { name: 'Чеснок' }, { name: 'Оливковое масло' }, { name: 'Соль' },
-        ],
-    },
-    {
-        id: '4',
-        title: 'Шакшука',
-        description: 'Сытная средиземноморская яичница в томатно-овощном соусе. Подавайте прямо со сковороды с хрустящим хлебом — идеально для бранча.',
-        image: 'https://images.unsplash.com/photo-1590412200988-a436970781fa?w=600&h=400&fit=crop',
-        calories: 320, protein: 16, fat: 22, carbs: 14,
-        rating: 4.98,
-        tags: ['ПП', 'БЕЗ ЛУКА', 'ГЛЮТЕН', 'УЖИН', 'ОБЕД', 'ПЕРВЫЕ БЛЮДА'],
-        ingredients: [
-            { name: 'Яйца' }, { name: 'Помидоры' }, { name: 'Перец болгарский' },
-            { name: 'Лук' }, { name: 'Чеснок' }, { name: 'Зелень' },
-        ],
-    },
-    {
-        id: '5',
-        title: 'Жаркое по-деревенски с горошком',
-        description: 'Тушёная говядина с картофелем, морковью и зелёным горошком. Готовится в одном казане, а аромат напомнит дом бабушки.',
-        image: 'https://images.unsplash.com/photo-1547592180-85f173990554?w=600&h=400&fit=crop&sat=-100',
-        calories: 410, protein: 22, fat: 18, carbs: 32,
-        rating: 4.98,
-        tags: ['ПП', 'БЕЗ ЛУКА', 'ГЛЮТЕН', 'УЖИН', 'ОБЕД', 'ПЕРВЫЕ БЛЮДА'],
-        ingredients: [
-            { name: 'Говядина' }, { name: 'Картофель' }, { name: 'Морковь' },
-            { name: 'Зелёный горошек' }, { name: 'Лук' }, { name: 'Специи' },
-        ],
-    },
-    {
-        id: '6',
-        title: 'Панкейки с карамелизированным бананом',
-        description: 'Воздушные панкейки с золотистой корочкой и сочным бананом в карамели. Лучший повод проснуться пораньше в выходной.',
-        image: 'https://images.unsplash.com/photo-1528207776546-365bb710ee93?w=600&h=400&fit=crop',
-        calories: 390, protein: 8, fat: 12, carbs: 62,
-        rating: 4.98,
-        tags: ['ПП', 'БЕЗ ЛУКА', 'ГЛЮТЕН', 'УЖИН', 'ОБЕД', 'ПЕРВЫЕ БЛЮДА'],
-        ingredients: [
-            { name: 'Мука' }, { name: 'Молоко' }, { name: 'Яйца' },
-            { name: 'Бананы' }, { name: 'Сахар коричневый' }, { name: 'Масло сливочное' },
-        ],
-    },
-    {
-        id: '7',
-        title: 'Вишнёвый смузи с какао',
-        description: 'Густой смузи на йогурте с замороженной вишней и какао-крошкой. Полезный десерт без сахара, который зарядит энергией.',
-        image: 'https://images.unsplash.com/photo-1623065422902-30a2d299bbe4?w=600&h=400&fit=crop',
-        calories: 160, protein: 7, fat: 4, carbs: 26,
-        rating: 4.7,
-        tags: ['ПП', 'ЗОЖ', 'ЗАВТРАК', 'ПЕРЕКУС'],
-        ingredients: [
-            { name: 'Вишня' }, { name: 'Йогурт греческий' }, { name: 'Какао' },
-            { name: 'Банан' }, { name: 'Молоко' }, { name: 'Мёд' },
-        ],
-    },
-    {
-        id: '8',
-        title: 'Финский черничный пирог',
-        description: 'Открытый пирог на песочном тесте с густой заливкой и шапкой из спелой черники. Чуть тёплый — идеален к чаю.',
-        image: 'https://images.unsplash.com/photo-1488477181946-6428a0291777?w=600&h=400&fit=crop',
-        calories: 285, protein: 5, fat: 11, carbs: 40,
-        rating: 4.85,
-        tags: ['ВЫПЕЧКА', 'ДЕСЕРТЫ', 'ПОЛДНИК'],
-        ingredients: [
-            { name: 'Мука' }, { name: 'Сливочное масло' }, { name: 'Сахар' },
-            { name: 'Черника' }, { name: 'Сметана' }, { name: 'Яйца' },
-        ],
-    },
-    {
-        id: '9',
-        title: 'Тост с авокадо и яйцом',
-        description: 'Цельнозерновой хлеб, пюре из авокадо с лимонным соком и яйцо-пашот. Пять минут — и завтрак готов.',
-        image: 'https://images.unsplash.com/photo-1525351484163-7529414344d8?w=600&h=400&fit=crop',
-        calories: 280, protein: 12, fat: 16, carbs: 22,
-        rating: 4.6,
-        tags: ['ПП', 'ЗОЖ', 'ЗАВТРАК', 'БЫСТРО'],
-        ingredients: [
-            { name: 'Хлеб цельнозерновой' }, { name: 'Авокадо' }, { name: 'Яйцо' },
-            { name: 'Лимон' }, { name: 'Перец чили' }, { name: 'Соль' },
-        ],
-    },
-    {
-        id: '10',
-        title: 'Гречотто с грибами',
-        description: 'Гречка по технологии ризотто — томится с обжаренными шампиньонами, луком и пармезаном. Сытно и без глютена.',
-        image: 'https://images.unsplash.com/photo-1476124369491-e7addf5db371?w=600&h=400&fit=crop',
-        calories: 310, protein: 11, fat: 9, carbs: 45,
-        rating: 4.75,
-        tags: ['ПП', 'РУССКАЯ КУХНЯ', 'ОБЕД', 'УЖИН', 'БЕЗ ГЛЮТЕНА'],
-        ingredients: [
-            { name: 'Гречка' }, { name: 'Шампиньоны' }, { name: 'Лук' },
-            { name: 'Пармезан' }, { name: 'Бульон овощной' }, { name: 'Тимьян' },
-        ],
-    },
-    {
-        id: '11',
-        title: 'Лосось на пару с рисом',
-        description: 'Сочный лосось на пару с лимоном и тимьяном, подаётся на подушке из ароматного жасминового риса. Ужин премиум-класса.',
-        image: 'https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=600&h=400&fit=crop',
-        calories: 360, protein: 32, fat: 14, carbs: 28,
-        rating: 4.92,
-        tags: ['ПП', 'ВЫСОКОБЕЛКОВОЕ', 'УЖИН'],
-        ingredients: [
-            { name: 'Лосось' }, { name: 'Рис жасмин' }, { name: 'Лимон' },
-            { name: 'Тимьян' }, { name: 'Оливковое масло' }, { name: 'Соль' },
-        ],
-    },
-    {
-        id: '12',
-        title: 'Боул с киноа и нутом',
-        description: 'Тёплый боул с киноа, печёным нутом, овощами и тахинной заправкой. Сбалансированно, вкусно и веган-френдли.',
-        image: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=600&h=400&fit=crop',
-        calories: 340, protein: 15, fat: 12, carbs: 48,
-        rating: 4.65,
-        tags: ['ВЕГАН', 'ЗОЖ', 'ОБЕД'],
-        ingredients: [
-            { name: 'Киноа' }, { name: 'Нут' }, { name: 'Шпинат' },
-            { name: 'Морковь' }, { name: 'Тахини' }, { name: 'Лимон' },
-        ],
-    },
-    {
-        id: '13',
-        title: 'Тыквенный крем-суп с имбирём',
-        description: 'Бархатный суп из запечённой тыквы с имбирём и кокосовыми сливками. Согревает в холодный вечер.',
-        image: 'https://images.unsplash.com/photo-1476718406336-bb5a9690ee2a?w=600&h=400&fit=crop',
-        calories: 195, protein: 4, fat: 8, carbs: 28,
-        rating: 4.8,
-        tags: ['ВЕГАН', 'ОБЕД', 'УЖИН', 'ПЕРВЫЕ БЛЮДА'],
-        ingredients: [
-            { name: 'Тыква' }, { name: 'Имбирь' }, { name: 'Кокосовые сливки' },
-            { name: 'Лук' }, { name: 'Чеснок' }, { name: 'Бульон' },
-        ],
-    },
-    {
-        id: '14',
-        title: 'Сырники с малиной',
-        description: 'Нежные сырники из творога 5% с ванилью, подача с малиновым соусом и сметаной. Классический завтрак выходного дня.',
-        image: 'https://images.unsplash.com/photo-1584949514490-73fc2b3f9d6d?w=600&h=400&fit=crop',
-        calories: 245, protein: 18, fat: 9, carbs: 24,
-        rating: 4.88,
-        tags: ['ПП', 'РУССКАЯ КУХНЯ', 'ЗАВТРАК'],
-        ingredients: [
-            { name: 'Творог' }, { name: 'Яйцо' }, { name: 'Мука' },
-            { name: 'Малина' }, { name: 'Сметана' }, { name: 'Ваниль' },
-        ],
-    },
-    {
-        id: '15',
-        title: 'Курица терияки с овощами',
-        description: 'Куриное филе в густом соусе терияки с обжаренными овощами и кунжутом. Подача на рисе — азиатская классика дома.',
-        image: 'https://images.unsplash.com/photo-1604908554007-3a5e8b9d4d3a?w=600&h=400&fit=crop',
-        calories: 380, protein: 28, fat: 11, carbs: 42,
-        rating: 4.7,
-        tags: ['АЗИАТСКАЯ КУХНЯ', 'УЖИН', 'ВЫСОКОБЕЛКОВОЕ'],
-        ingredients: [
-            { name: 'Куриное филе' }, { name: 'Соус терияки' }, { name: 'Перец' },
-            { name: 'Брокколи' }, { name: 'Кунжут' }, { name: 'Рис' },
-        ],
-    },
-]
-
-const SORT_OPTIONS: { id: SortId; label: string }[] = [
-    { id: 'popular', label: 'По популярности' },
-    { id: 'rating', label: 'По рейтингу' },
-    { id: 'calories_asc', label: 'Калории ↑' },
-    { id: 'calories_desc', label: 'Калории ↓' },
-]
-
 /* ═══════════════════════════════════════════
-   IngredientsDropdown
-   Portal-based: панель рендерится в body, поэтому
-   не клиппится `overflow: hidden` карточки и не
-   зависит от z-index стеков предков.
+   IngredientsDropdown — на карточке (просмотр)
+   Portal-based: панель рендерится в body, не клиппится оверфлоу.
    ═══════════════════════════════════════════ */
 const IngredientsDropdown = memo(function IngredientsDropdown({
     ingredients,
@@ -347,7 +48,6 @@ const IngredientsDropdown = memo(function IngredientsDropdown({
         const rect = el.getBoundingClientRect()
         const PANEL_W = 240
         const PADDING = 12
-        // не вылезаем за правый край
         let left = rect.left
         if (left + PANEL_W > window.innerWidth - PADDING) {
             left = window.innerWidth - PANEL_W - PADDING
@@ -373,13 +73,10 @@ const IngredientsDropdown = memo(function IngredientsDropdown({
             if (e.key === 'Escape') setOpen(false)
         }
         const close = () => setOpen(false)
-
         document.addEventListener('mousedown', handleClick)
         document.addEventListener('keydown', handleEsc)
-        // закрываем при скролле/ресайзе — позиция стала бы устаревшей
         window.addEventListener('scroll', close, true)
         window.addEventListener('resize', close)
-
         return () => {
             document.removeEventListener('mousedown', handleClick)
             document.removeEventListener('keydown', handleEsc)
@@ -416,7 +113,8 @@ const IngredientsDropdown = memo(function IngredientsDropdown({
                 >
                     {ingredients.map((ing, i) => (
                         <span key={ing.name}>
-                            {ing.name}{i < ingredients.length - 1 && ', '}
+                            {ing.name}{ing.amount ? ` — ${ing.amount}${ing.unit ? ' ' + ing.unit : ''}` : ''}
+                            {i < ingredients.length - 1 && ', '}
                         </span>
                     ))}
                 </div>,
@@ -427,16 +125,21 @@ const IngredientsDropdown = memo(function IngredientsDropdown({
 })
 
 /* ═══════════════════════════════════════════
-   RecipeCard — split layout (image top + body)
+   RecipeCard — карточка в ленте (image top + body)
    ═══════════════════════════════════════════ */
 interface RecipeCardProps {
     recipe: Recipe
     isFavorite: boolean
+    isCooked: boolean
+    rating: { average: number; count: number }
     onToggleFavorite: (id: string) => void
+    onMarkCooked: (id: string) => void
+    showCookButton?: boolean
 }
 
 const RecipeCard = memo(function RecipeCard({
-    recipe, isFavorite, onToggleFavorite,
+    recipe, isFavorite, isCooked, rating, onToggleFavorite, onMarkCooked,
+    showCookButton = true,
 }: RecipeCardProps) {
     const [imgErr, setImgErr] = useState(false)
 
@@ -461,7 +164,10 @@ const RecipeCard = memo(function RecipeCard({
                 <div className="ck-card__media-top">
                     <IngredientsDropdown ingredients={recipe.ingredients} />
                     <div className="ck-card__media-top-right">
-                        <span className="ck-card__kbzhu" aria-label={`Калории ${recipe.calories}, белки ${recipe.protein}, жиры ${recipe.fat}, углеводы ${recipe.carbs}`}>
+                        <span
+                            className="ck-card__kbzhu"
+                            aria-label={`Калории ${recipe.calories}, белки ${recipe.protein}, жиры ${recipe.fat}, углеводы ${recipe.carbs}`}
+                        >
                             КБЖУ {recipe.calories}/{recipe.protein}/{recipe.fat}/{recipe.carbs}
                         </span>
                         <button
@@ -482,10 +188,10 @@ const RecipeCard = memo(function RecipeCard({
 
                 <div className="ck-card__media-tags">
                     <div className="ck-card__tags">
-                        {recipe.tags.slice(0, 6).map((tag, i) => (
+                        {recipe.displayTags.slice(0, 6).map((tag, i) => (
                             <span key={tag} className="ck-card__tag">
                                 {tag}
-                                {i < Math.min(recipe.tags.length, 6) - 1 && (
+                                {i < Math.min(recipe.displayTags.length, 6) - 1 && (
                                     <span className="ck-card__tag-sep" aria-hidden="true">•</span>
                                 )}
                             </span>
@@ -495,14 +201,214 @@ const RecipeCard = memo(function RecipeCard({
             </div>
 
             <div className="ck-card__body">
-                <h3 id={`recipe-${recipe.id}-title`} className="ck-card__title">{recipe.title}</h3>
+                <h3 id={`recipe-${recipe.id}-title`} className="ck-card__title">
+                    {recipe.title}
+                </h3>
                 <p className="ck-card__desc">{recipe.description}</p>
                 <div className="ck-card__footer">
-                    <div className="ck-card__rating" aria-label={`Рейтинг ${recipe.rating.toFixed(2)} из 5`}>
+                    <div className="ck-card__time" aria-label={`Время готовки ${recipe.cookTime} минут`}>
+                        ⏱ {recipe.cookTime} мин
+                    </div>
+                    <div className="ck-card__rating" aria-label={`Рейтинг ${rating.average.toFixed(2)} из 5, ${rating.count} оценок`}>
                         <Star size={14} className="ck-card__star" aria-hidden="true" />
-                        <span className="ck-card__rating-val">{recipe.rating.toFixed(2)}</span>
+                        <span className="ck-card__rating-val">{rating.average.toFixed(2)}</span>
                     </div>
                 </div>
+
+                {showCookButton && (
+                    <button
+                        type="button"
+                        className={`ck-card__cook-btn ${isCooked ? 'ck-card__cook-btn--done' : ''}`}
+                        onClick={(e) => { e.stopPropagation(); onMarkCooked(recipe.id) }}
+                        aria-pressed={isCooked}
+                        aria-label={isCooked ? 'Уже в Приготовлено' : 'Отметить как приготовленное'}
+                        disabled={isCooked}
+                    >
+                        {isCooked
+                            ? (<><Check size={14} aria-hidden="true" /> В «Приготовлено»</>)
+                            : (<><Plus size={14} aria-hidden="true" /> Приготовлено</>)}
+                    </button>
+                )}
+            </div>
+        </article>
+    )
+})
+
+/* ═══════════════════════════════════════════
+   StarRating — интерактивная шкала 1..5
+   Поддерживает keyboard (← → ⇧ Tab + space/enter).
+   ═══════════════════════════════════════════ */
+interface StarRatingProps {
+    value: number | null
+    onChange: (value: number) => void
+    /** Только показ, без интерактивности. */
+    readOnly?: boolean
+    size?: number
+    /** Aria label для всей группы. */
+    label?: string
+}
+
+const StarRating = memo(function StarRating({
+    value, onChange, readOnly = false, size = 26, label,
+}: StarRatingProps) {
+    const [hover, setHover] = useState<number | null>(null)
+    const display = hover ?? value ?? 0
+
+    const handleKey = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+        if (readOnly) return
+        if (e.key === 'ArrowLeft') {
+            e.preventDefault()
+            onChange(Math.max(1, (value ?? 1) - 1))
+        } else if (e.key === 'ArrowRight') {
+            e.preventDefault()
+            onChange(Math.min(5, (value ?? 0) + 1))
+        }
+    }
+
+    return (
+        <div
+            className={`ck-stars ${readOnly ? 'ck-stars--readonly' : ''}`}
+            role={readOnly ? 'img' : 'radiogroup'}
+            aria-label={label || (readOnly ? `Оценка ${value ?? 0} из 5` : 'Поставить оценку от 1 до 5')}
+            onMouseLeave={() => setHover(null)}
+            onKeyDown={handleKey}
+            tabIndex={readOnly ? -1 : 0}
+        >
+            {[1, 2, 3, 4, 5].map((n) => {
+                const active = n <= display
+                return (
+                    <button
+                        key={n}
+                        type="button"
+                        className={`ck-stars__btn ${active ? 'ck-stars__btn--on' : ''}`}
+                        onMouseEnter={() => !readOnly && setHover(n)}
+                        onClick={() => !readOnly && onChange(n)}
+                        disabled={readOnly}
+                        role={readOnly ? undefined : 'radio'}
+                        aria-checked={readOnly ? undefined : value === n}
+                        aria-label={`${n} ${n === 1 ? 'звезда' : n < 5 ? 'звезды' : 'звёзд'}`}
+                        tabIndex={-1}
+                    >
+                        <Star
+                            size={size}
+                            fill={active ? 'currentColor' : 'none'}
+                            strokeWidth={1.5}
+                            aria-hidden="true"
+                        />
+                    </button>
+                )
+            })}
+        </div>
+    )
+})
+
+/* ═══════════════════════════════════════════
+   CookedRow — строка в табе «Приготовлено»
+   ═══════════════════════════════════════════ */
+interface CookedRowProps {
+    recipe: Recipe
+    isFavorite: boolean
+    userRating: number | null
+    aggregateRating: { average: number; count: number }
+    onToggleFavorite: (id: string) => void
+    onSubmitRating: (id: string, prev: number | null, next: number) => void
+    onRequestRemove: (id: string) => void
+}
+
+const CookedRow = memo(function CookedRow({
+    recipe, isFavorite, userRating, aggregateRating,
+    onToggleFavorite, onSubmitRating, onRequestRemove,
+}: CookedRowProps) {
+    const [draftRating, setDraftRating] = useState<number | null>(userRating)
+    const [editing, setEditing] = useState(userRating === null)
+
+    // Если оценка извне поменялась (например, импорт из другого таба), синкаем
+    useEffect(() => {
+        setDraftRating(userRating)
+        setEditing(userRating === null)
+    }, [userRating])
+
+    const canSubmit = editing && draftRating !== null && draftRating !== userRating
+
+    const handleSubmit = () => {
+        if (draftRating === null) return
+        onSubmitRating(recipe.id, userRating, draftRating)
+        setEditing(false)
+    }
+
+    return (
+        <article className="ck-cooked-row" aria-labelledby={`cooked-${recipe.id}-title`}>
+            <div className="ck-cooked-row__card">
+                <RecipeCard
+                    recipe={recipe}
+                    isFavorite={isFavorite}
+                    isCooked
+                    rating={aggregateRating}
+                    onToggleFavorite={onToggleFavorite}
+                    onMarkCooked={() => {/* уже в cooked */}}
+                    showCookButton={false}
+                />
+            </div>
+
+            <div className="ck-cooked-row__rate">
+                <h4 className="ck-cooked-row__rate-title">
+                    {userRating === null ? 'Оценить рецепт?' : 'Ваша оценка'}
+                </h4>
+                <div className="ck-cooked-row__rate-row">
+                    <StarRating
+                        value={draftRating}
+                        onChange={(v) => { setDraftRating(v); setEditing(true) }}
+                        readOnly={!editing}
+                    />
+                    {!editing && userRating !== null ? (
+                        <button
+                            type="button"
+                            className="ck-cooked-row__btn"
+                            onClick={() => setEditing(true)}
+                        >
+                            Изменить оценку
+                        </button>
+                    ) : (
+                        <button
+                            type="button"
+                            className="ck-cooked-row__btn"
+                            onClick={handleSubmit}
+                            disabled={!canSubmit}
+                        >
+                            Отправить оценку
+                        </button>
+                    )}
+                </div>
+                {!editing && userRating !== null && (
+                    <p className="ck-cooked-row__thanks" role="status">Спасибо!</p>
+                )}
+            </div>
+
+            <div className="ck-cooked-row__agg">
+                <h4 className="ck-cooked-row__rate-title">Общий рейтинг</h4>
+                <div className="ck-cooked-row__agg-val">
+                    <Star size={18} fill="currentColor" aria-hidden="true" />
+                    <span className="ck-cooked-row__agg-num">
+                        {aggregateRating.average.toFixed(2)}
+                    </span>
+                    <span className="ck-cooked-row__agg-count">
+                        {aggregateRating.count}{' '}
+                        {aggregateRating.count === 1
+                            ? 'оценка'
+                            : aggregateRating.count >= 2 && aggregateRating.count <= 4
+                                ? 'оценки'
+                                : 'оценок'}
+                    </span>
+                </div>
+                <button
+                    type="button"
+                    className="ck-cooked-row__delete"
+                    onClick={() => onRequestRemove(recipe.id)}
+                    aria-label={`Удалить ${recipe.title} из приготовленных`}
+                >
+                    Удалить
+                    <Trash2 size={14} aria-hidden="true" />
+                </button>
             </div>
         </article>
     )
@@ -512,9 +418,8 @@ const RecipeCard = memo(function RecipeCard({
    FilterSidebar — single instance, dual mode
    ═══════════════════════════════════════════ */
 interface FilterSidebarProps {
-    groups: FilterGroupData[]
-    selected: Record<string, string[]>
-    onToggle: (gId: string, oId: string) => void
+    selected: Record<FilterGroupId, string[]>
+    onToggle: (gId: FilterGroupId, oId: string) => void
     onApply: () => void
     onReset: () => void
     isOpen: boolean
@@ -522,7 +427,7 @@ interface FilterSidebarProps {
 }
 
 const FilterSidebar = memo(function FilterSidebar({
-    groups, selected, onToggle, onApply, onReset, isOpen, onClose,
+    selected, onToggle, onApply, onReset, isOpen, onClose,
 }: FilterSidebarProps) {
     const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
 
@@ -530,7 +435,6 @@ const FilterSidebar = memo(function FilterSidebar({
         setCollapsed((p) => ({ ...p, [id]: !p[id] }))
     }, [])
 
-    // блокируем скролл body на мобильном при открытом drawer'e
     useEffect(() => {
         if (!isOpen) return
         const original = document.body.style.overflow
@@ -538,7 +442,6 @@ const FilterSidebar = memo(function FilterSidebar({
         return () => { document.body.style.overflow = original }
     }, [isOpen])
 
-    // Esc закрывает мобильный drawer
     useEffect(() => {
         if (!isOpen) return
         const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -569,7 +472,7 @@ const FilterSidebar = memo(function FilterSidebar({
                     <h2 className="ck-sidebar__desk-title">Фильтры</h2>
 
                     <div className="ck-fgroups">
-                        {groups.map((g) => {
+                        {FILTER_GROUPS.map((g) => {
                             const isCol = collapsed[g.id] ?? false
                             const groupId = `fg-${g.id}`
                             const panelId = `fg-panel-${g.id}`
@@ -598,10 +501,7 @@ const FilterSidebar = memo(function FilterSidebar({
                                             {g.options.map((o) => {
                                                 const checked = !!selected[g.id]?.includes(o.id)
                                                 return (
-                                                    <label
-                                                        key={o.id}
-                                                        className="ck-foption"
-                                                    >
+                                                    <label key={o.id} className="ck-foption">
                                                         <input
                                                             type="checkbox"
                                                             className="ck-foption__input"
@@ -618,11 +518,6 @@ const FilterSidebar = memo(function FilterSidebar({
                                                     </label>
                                                 )
                                             })}
-                                            {g.showMore && (
-                                                <button type="button" className="ck-show-more">
-                                                    Показать ещё
-                                                </button>
-                                            )}
                                         </div>
                                     )}
                                 </div>
@@ -654,7 +549,6 @@ const FilterSidebar = memo(function FilterSidebar({
 
 /* ═══════════════════════════════════════════
    ConfirmModal — портал-диалог с фокус-локом и Esc-close.
-   Используется при удалении из избранного.
    ═══════════════════════════════════════════ */
 interface ConfirmModalProps {
     title: string
@@ -677,7 +571,6 @@ const ConfirmModal = memo(function ConfirmModal({
         document.addEventListener('keydown', onKey)
         const prev = document.body.style.overflow
         document.body.style.overflow = 'hidden'
-        // фокусируем «Отмена» по умолчанию — безопасный выбор
         dialogRef.current?.querySelector<HTMLButtonElement>('[data-autofocus]')?.focus()
         return () => {
             document.removeEventListener('keydown', onKey)
@@ -686,11 +579,7 @@ const ConfirmModal = memo(function ConfirmModal({
     }, [onCancel])
 
     return createPortal(
-        <div
-            className="ck-confirm-backdrop"
-            role="presentation"
-            onClick={onCancel}
-        >
+        <div className="ck-confirm-backdrop" role="presentation" onClick={onCancel}>
             <div
                 ref={dialogRef}
                 className="ck-confirm"
@@ -736,57 +625,244 @@ const ConfirmModal = memo(function ConfirmModal({
 })
 
 /* ═══════════════════════════════════════════
-   CookifyApp
+   IngredientsModal — «Кнопка Ингредиенты» из ТЗ.
+   Поиск + чекбоксы, сохраняем как «выбранные ингредиенты»
+   для фильтрации ленты по условию ИЛИ.
+   ═══════════════════════════════════════════ */
+interface IngredientsModalProps {
+    available: string[]
+    initial: string[]
+    onClose: () => void
+    onSave: (next: string[]) => void
+}
+
+const IngredientsModal = memo(function IngredientsModal({
+    available, initial, onClose, onSave,
+}: IngredientsModalProps) {
+    const [text, setText] = useState(initial.join(','))
+    const [draft, setDraft] = useState<Set<string>>(() => new Set(initial))
+    const dialogRef = useRef<HTMLDivElement>(null)
+
+    useEffect(() => {
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') onClose()
+        }
+        document.addEventListener('keydown', onKey)
+        const prev = document.body.style.overflow
+        document.body.style.overflow = 'hidden'
+        dialogRef.current?.querySelector<HTMLInputElement>('[data-autofocus]')?.focus()
+        return () => {
+            document.removeEventListener('keydown', onKey)
+            document.body.style.overflow = prev
+        }
+    }, [onClose])
+
+    /** Парсим введённый текст: запятые → массив имён. Без учёта регистра. */
+    const recognized = useMemo(() => {
+        const tokens = text.split(',').map((t) => t.trim()).filter(Boolean)
+        // нормализуем к каноническому виду (как в available), если совпадает
+        return tokens.map((t) => {
+            const match = available.find(
+                (a) => a.toLowerCase() === t.toLowerCase(),
+            )
+            return match ?? t
+        })
+    }, [text, available])
+
+    /** Когда меняется текст — синхронизируем draft. */
+    useEffect(() => {
+        setDraft(new Set(recognized))
+    }, [recognized])
+
+    const toggle = (item: string) => {
+        setDraft((prev) => {
+            const next = new Set(prev)
+            if (next.has(item)) next.delete(item)
+            else next.add(item)
+            return next
+        })
+    }
+
+    const handleSave = () => {
+        onSave([...draft])
+        onClose()
+    }
+
+    return createPortal(
+        <div className="ck-confirm-backdrop" role="presentation" onClick={onClose}>
+            <div
+                ref={dialogRef}
+                className="ck-confirm ck-confirm--wide"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="ck-ingmodal-title"
+                aria-describedby="ck-ingmodal-desc"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <button
+                    type="button"
+                    className="ck-confirm__close"
+                    onClick={onClose}
+                    aria-label="Закрыть"
+                >
+                    <X size={18} aria-hidden="true" />
+                </button>
+
+                <h2 id="ck-ingmodal-title" className="ck-confirm__title">
+                    Добавить ингредиенты
+                </h2>
+                <p id="ck-ingmodal-desc" className="ck-confirm__desc">
+                    Введите продукты, которые хотите использовать в блюде.
+                    Названия продуктов вводите через запятую без пробелов после неё.
+                </p>
+
+                <p className="ck-ingmodal__hint">
+                    Например, «Красная рыба,томат,базилик»
+                </p>
+                <input
+                    type="search"
+                    className="ck-ingmodal__input"
+                    value={text}
+                    onChange={(e) => setText(e.target.value)}
+                    placeholder="Поиск рецептов"
+                    aria-label="Список ингредиентов через запятую"
+                    autoComplete="off"
+                    data-autofocus
+                />
+
+                <h3 className="ck-ingmodal__subtitle">Используемые продукты</h3>
+                {draft.size === 0 ? (
+                    <p className="ck-ingmodal__empty">
+                        Введите ингредиенты выше или выберите из подсказок ниже.
+                    </p>
+                ) : (
+                    <ul className="ck-ingmodal__list" role="list">
+                        {[...draft].map((item) => (
+                            <li key={item}>
+                                <label className="ck-ingmodal__opt">
+                                    <input
+                                        type="checkbox"
+                                        checked
+                                        onChange={() => toggle(item)}
+                                        className="ck-ingmodal__opt-input"
+                                    />
+                                    <span
+                                        className="ck-ingmodal__opt-box ck-ingmodal__opt-box--on"
+                                        aria-hidden="true"
+                                    >
+                                        <Check size={12} color="#fff" />
+                                    </span>
+                                    <span className="ck-ingmodal__opt-label">{item}</span>
+                                </label>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+
+                <details className="ck-ingmodal__suggest">
+                    <summary>Подсказки из базы рецептов</summary>
+                    <ul className="ck-ingmodal__list" role="list">
+                        {available.slice(0, 30).map((item) => {
+                            const checked = draft.has(item)
+                            return (
+                                <li key={item}>
+                                    <label className="ck-ingmodal__opt">
+                                        <input
+                                            type="checkbox"
+                                            checked={checked}
+                                            onChange={() => toggle(item)}
+                                            className="ck-ingmodal__opt-input"
+                                        />
+                                        <span
+                                            className={`ck-ingmodal__opt-box ${checked ? 'ck-ingmodal__opt-box--on' : ''}`}
+                                            aria-hidden="true"
+                                        >
+                                            {checked && <Check size={12} color="#fff" />}
+                                        </span>
+                                        <span className="ck-ingmodal__opt-label">{item}</span>
+                                    </label>
+                                </li>
+                            )
+                        })}
+                    </ul>
+                </details>
+
+                <p className="ck-ingmodal__footnote">
+                    Проверьте правильность списка и нажмите кнопку «Сохранить».
+                </p>
+
+                <div className="ck-confirm__actions">
+                    <button
+                        type="button"
+                        className="ck-confirm__btn ck-confirm__btn--ghost"
+                        onClick={onClose}
+                    >
+                        Отмена
+                    </button>
+                    <button
+                        type="button"
+                        className="ck-confirm__btn ck-confirm__btn--primary"
+                        onClick={handleSave}
+                    >
+                        Сохранить
+                    </button>
+                </div>
+            </div>
+        </div>,
+        document.body,
+    )
+})
+
+/* ═══════════════════════════════════════════
+   CookifyApp — главный компонент
    ═══════════════════════════════════════════ */
 export default function CookifyApp() {
+    const { user } = useAuth()
     const [activeTab, setActiveTab] = useState<TabId>('recommendations')
     const [search, setSearch] = useState('')
     const [recipeSearch, setRecipeSearch] = useState('')
     const [sidebarOpen, setSidebarOpen] = useState(false)
     const [sortOpen, setSortOpen] = useState(false)
     const [sortBy, setSortBy] = useState<SortId>('popular')
-    const [selectedFilters, setSelectedFilters] = useState<Record<string, string[]>>({})
-    const { favorites, add: addFav, remove: removeFav } = useFavorites()
-    const [cooked] = useState<Set<string>>(new Set())
-    const [showScrollTop, setShowScrollTop] = useState(false)
-    /** id рецепта, который пользователь хочет удалить из избранного — рендерим ConfirmModal. */
-    const [pendingUnfav, setPendingUnfav] = useState<string | null>(null)
+    const [selectedFilters, setSelectedFilters] = useState<
+        Record<FilterGroupId, string[]>
+    >({ mealType: [], occasions: [], health: [], cuisine: [], taste: [] })
+    const [chosenIngredients, setChosenIngredients] = useState<string[]>([])
+    const [ingredientsOpen, setIngredientsOpen] = useState(false)
 
-    // scroll-to-top visibility (passive listener для производительности)
+    const { favorites, add: addFav, remove: removeFav } = useFavorites()
+    const { exclusions } = useExclusions(user?.id)
+    const {
+        cooked, add: addCooked, remove: removeCooked,
+        rate: rateCooked, has: isInCooked,
+    } = useCooked(user?.id)
+    const { getRating, submit: submitRating, replace: replaceRating, withdraw: withdrawRating } = useRatings()
+
+    const cookedIds = useMemo(() => new Set(Object.keys(cooked)), [cooked])
+
+    const [showScrollTop, setShowScrollTop] = useState(false)
+    const [pendingUnfav, setPendingUnfav] = useState<string | null>(null)
+    const [pendingUncook, setPendingUncook] = useState<string | null>(null)
+
     useEffect(() => {
         const handler = () => setShowScrollTop(window.scrollY > 400)
         window.addEventListener('scroll', handler, { passive: true })
         return () => window.removeEventListener('scroll', handler)
     }, [])
 
-    const toggleFilter = useCallback((groupId: string, optionId: string) => {
+    const toggleFilter = useCallback((groupId: FilterGroupId, optionId: string) => {
         setSelectedFilters((prev) => {
             const current = prev[groupId] || []
             const next = current.includes(optionId)
                 ? current.filter((id) => id !== optionId)
                 : [...current, optionId]
-            if (next.length === 0) {
-                // вычистили группу полностью — удаляем ключ, чтобы
-                // activeFiltersList не содержал пустых entries
-                const rest = { ...prev }
-                delete rest[groupId]
-                return rest
-            }
             return { ...prev, [groupId]: next }
         })
     }, [])
 
-    /**
-     * Клик по сердечку:
-     * — добавление в избранное → сразу же
-     * — удаление из избранного → сначала подтверждение в модалке
-     */
     const handleToggleFavorite = useCallback((id: string) => {
-        if (favorites.has(id)) {
-            setPendingUnfav(id)
-        } else {
-            addFav(id)
-        }
+        if (favorites.has(id)) setPendingUnfav(id)
+        else addFav(id)
     }, [favorites, addFav])
 
     const confirmUnfavorite = useCallback(() => {
@@ -794,11 +870,34 @@ export default function CookifyApp() {
         setPendingUnfav(null)
     }, [pendingUnfav, removeFav])
 
-    const cancelUnfavorite = useCallback(() => setPendingUnfav(null), [])
+    const handleMarkCooked = useCallback((id: string) => {
+        if (!isInCooked(id)) addCooked(id)
+    }, [isInCooked, addCooked])
+
+    const confirmUncook = useCallback(() => {
+        if (!pendingUncook) return
+        const id = pendingUncook
+        const userRating = cooked[id]
+        // если оценка была — снимем её из глобальной аггрегации
+        if (typeof userRating === 'number') withdrawRating(id, userRating)
+        removeCooked(id)
+        setPendingUncook(null)
+    }, [pendingUncook, cooked, removeCooked, withdrawRating])
+
+    /** Применить пользовательскую оценку: либо первая, либо «изменение». */
+    const handleSubmitRating = useCallback(
+        (id: string, prev: number | null, next: number) => {
+            if (prev === null) submitRating(id, next)
+            else replaceRating(id, prev, next)
+            rateCooked(id, next)
+        },
+        [submitRating, replaceRating, rateCooked],
+    )
 
     const activeFiltersList = useMemo(() => {
-        const list: { groupId: string; optionId: string; label: string }[] = []
-        for (const [gId, opts] of Object.entries(selectedFilters)) {
+        const list: { groupId: FilterGroupId; optionId: string; label: string }[] = []
+        for (const [gIdRaw, opts] of Object.entries(selectedFilters)) {
+            const gId = gIdRaw as FilterGroupId
             const group = FILTER_GROUPS.find((g) => g.id === gId)
             if (!group) continue
             for (const oId of opts) {
@@ -809,43 +908,34 @@ export default function CookifyApp() {
         return list
     }, [selectedFilters])
 
-    const visibleRecipes = useMemo(() => {
-        // фильтруем по табу
-        let base = RECIPES
-        if (activeTab === 'favorites') base = base.filter((r) => favorites.has(r.id))
-        else if (activeTab === 'cooked') base = base.filter((r) => cooked.has(r.id))
+    const visibleRecipes = useFilteredRecipes({
+        recipes: ALL_RECIPES,
+        activeTab,
+        favorites,
+        cookedIds,
+        chosenIngredients,
+        excludedIngredients: exclusions,
+        sidebarFilters: selectedFilters,
+        search: search || recipeSearch,
+        sortBy,
+        ratingFor: getRating,
+    })
 
-        // поиск
-        const query = (search || recipeSearch).trim().toLowerCase()
-        if (query) {
-            base = base.filter((r) =>
-                r.title.toLowerCase().includes(query) ||
-                r.description.toLowerCase().includes(query) ||
-                r.tags.some((t) => t.toLowerCase().includes(query)) ||
-                r.ingredients.some((i) => i.name.toLowerCase().includes(query)),
-            )
-        }
-
-        // сортировка (создаём копию, чтобы не мутировать)
-        const result = [...base]
-        switch (sortBy) {
-            case 'rating': result.sort((a, b) => b.rating - a.rating); break
-            case 'calories_asc': result.sort((a, b) => a.calories - b.calories); break
-            case 'calories_desc': result.sort((a, b) => b.calories - a.calories); break
-        }
-        return result
-    }, [activeTab, search, recipeSearch, sortBy, favorites, cooked])
-
-    const clearFilters = useCallback(() => setSelectedFilters({}), [])
+    const clearFilters = useCallback(() => {
+        setSelectedFilters({ mealType: [], occasions: [], health: [], cuisine: [], taste: [] })
+    }, [])
     const closeSidebar = useCallback(() => setSidebarOpen(false), [])
     const openSidebar = useCallback(() => setSidebarOpen(true), [])
     const scrollToTop = useCallback(() => {
         window.scrollTo({ top: 0, behavior: 'smooth' })
     }, [])
 
-    /** Показывать тулбар поиска только на табе "Рекомендации" — на "Избранное"
-     *  и "Приготовлено" остаётся компактный поиск без CTA-кнопки (как на Figma). */
+    /** Toolbar-CTA «Загрузить рецепт» показываем только на «Рекомендациях». */
     const isRecommendations = activeTab === 'recommendations'
+    const isCookedTab = activeTab === 'cooked'
+
+    /* ─── Empty/auth states ─── */
+    const showAuthGate = !user && activeTab !== 'recommendations'
 
     return (
         <div className="ck-page">
@@ -877,7 +967,6 @@ export default function CookifyApp() {
             <main className="ck-main">
                 <div className="ck-content">
                     <FilterSidebar
-                        groups={FILTER_GROUPS}
                         selected={selectedFilters}
                         onToggle={toggleFilter}
                         onApply={closeSidebar}
@@ -904,7 +993,8 @@ export default function CookifyApp() {
                                 <button
                                     type="button"
                                     className="ck-upload-btn"
-                                    aria-label="Загрузить рецепт"
+                                    aria-label="Загрузить рецепт (скоро)"
+                                    title="Скоро"
                                 >
                                     Загрузить рецепт
                                     <ArrowRight size={16} aria-hidden="true" />
@@ -915,7 +1005,7 @@ export default function CookifyApp() {
                         <div className="ck-title-row">
                             <h1 className="ck-heading">
                                 {activeTab === 'favorites' ? 'Избранное'
-                                    : activeTab === 'cooked' ? 'Приготовлено'
+                                    : activeTab === 'cooked' ? 'Уже приготовили?'
                                         : 'Что приготовим сегодня?'}
                             </h1>
                             <div className="ck-controls">
@@ -983,18 +1073,40 @@ export default function CookifyApp() {
                                 {isRecommendations && (
                                     <button
                                         type="button"
-                                        className="ck-pill ck-pill--desktop"
+                                        className={`ck-pill ck-pill--desktop ${chosenIngredients.length > 0 ? 'ck-pill--active' : ''}`}
+                                        onClick={() => setIngredientsOpen(true)}
                                         aria-label="Фильтр по ингредиентам"
                                     >
                                         Ингредиенты
                                         <SlidersHorizontal size={14} aria-hidden="true" />
+                                        {chosenIngredients.length > 0 && (
+                                            <span className="ck-pill__badge">{chosenIngredients.length}</span>
+                                        )}
                                     </button>
                                 )}
                             </div>
                         </div>
 
-                        {activeFiltersList.length > 0 && (
+                        {(activeFiltersList.length > 0 || chosenIngredients.length > 0 || exclusions.length > 0) && (
                             <div className="ck-chips" aria-live="polite">
+                                {chosenIngredients.map((ing) => (
+                                    <span key={`ing-${ing}`} className="ck-chip ck-chip--accent">
+                                        + {ing}
+                                        <button
+                                            type="button"
+                                            className="ck-chip__x"
+                                            onClick={() => setChosenIngredients((p) => p.filter((x) => x !== ing))}
+                                            aria-label={`Убрать ингредиент ${ing}`}
+                                        >
+                                            ×
+                                        </button>
+                                    </span>
+                                ))}
+                                {exclusions.map((ex) => (
+                                    <span key={`ex-${ex}`} className="ck-chip ck-chip--muted" title="Исключение из профиля">
+                                        − {ex}
+                                    </span>
+                                ))}
                                 {activeFiltersList.map((f) => (
                                     <span key={`${f.groupId}-${f.optionId}`} className="ck-chip">
                                         {f.label}
@@ -1008,39 +1120,64 @@ export default function CookifyApp() {
                                         </button>
                                     </span>
                                 ))}
-                                <button
-                                    type="button"
-                                    className="ck-clear-filters"
-                                    onClick={clearFilters}
-                                >
-                                    Сбросить все
-                                </button>
+                                {(activeFiltersList.length > 0 || chosenIngredients.length > 0) && (
+                                    <button
+                                        type="button"
+                                        className="ck-clear-filters"
+                                        onClick={() => { clearFilters(); setChosenIngredients([]) }}
+                                    >
+                                        Сбросить фильтры
+                                    </button>
+                                )}
                             </div>
                         )}
 
-                        <div className="ck-grid" role="list" aria-label="Список рецептов">
-                            {visibleRecipes.length === 0 ? (
-                                <div className="ck-grid__empty" role="status">
-                                    <span className="ck-grid__empty-icon" aria-hidden="true">🔍</span>
-                                    <h3 className="ck-grid__empty-title">Ничего не найдено</h3>
-                                    <p className="ck-grid__empty-text">
-                                        {activeTab === 'favorites'
-                                            ? 'Добавляйте рецепты в избранное — они появятся здесь'
-                                            : activeTab === 'cooked'
-                                                ? 'Здесь появятся рецепты, которые вы приготовили'
-                                                : 'Попробуйте изменить фильтры или поисковый запрос'}
-                                    </p>
-                                </div>
-                            ) : visibleRecipes.map((recipe) => (
-                                <div key={recipe.id} role="listitem">
-                                    <RecipeCard
-                                        recipe={recipe}
-                                        isFavorite={favorites.has(recipe.id)}
-                                        onToggleFavorite={handleToggleFavorite}
-                                    />
-                                </div>
-                            ))}
-                        </div>
+                        {showAuthGate ? (
+                            <div className="ck-grid__empty" role="status">
+                                <span className="ck-grid__empty-icon" aria-hidden="true">🔒</span>
+                                <h3 className="ck-grid__empty-title">Войдите, чтобы продолжить</h3>
+                                <p className="ck-grid__empty-text">
+                                    «Избранное» и «Приготовлено» работают для зарегистрированных
+                                    пользователей. Войдите или зарегистрируйтесь, чтобы сохранять
+                                    рецепты и оценки.
+                                </p>
+                            </div>
+                        ) : isCookedTab ? (
+                            <CookedList
+                                recipes={visibleRecipes}
+                                cooked={cooked}
+                                favorites={favorites}
+                                getRating={getRating}
+                                onToggleFavorite={handleToggleFavorite}
+                                onSubmitRating={handleSubmitRating}
+                                onRequestRemove={setPendingUncook}
+                            />
+                        ) : (
+                            <div className="ck-grid" role="list" aria-label="Список рецептов">
+                                {visibleRecipes.length === 0 ? (
+                                    <div className="ck-grid__empty" role="status">
+                                        <span className="ck-grid__empty-icon" aria-hidden="true">🔍</span>
+                                        <h3 className="ck-grid__empty-title">Ничего не найдено</h3>
+                                        <p className="ck-grid__empty-text">
+                                            {activeTab === 'favorites'
+                                                ? 'Добавляйте рецепты в избранное — они появятся здесь.'
+                                                : 'Рецептов с такими условиями нет или возможно была допущена ошибка при формировании списка фильтров.'}
+                                        </p>
+                                    </div>
+                                ) : visibleRecipes.map((recipe) => (
+                                    <div key={recipe.id} role="listitem">
+                                        <RecipeCard
+                                            recipe={recipe}
+                                            isFavorite={favorites.has(recipe.id)}
+                                            isCooked={isInCooked(recipe.id)}
+                                            rating={getRating(recipe.id)}
+                                            onToggleFavorite={handleToggleFavorite}
+                                            onMarkCooked={handleMarkCooked}
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </section>
                 </div>
             </main>
@@ -1062,10 +1199,79 @@ export default function CookifyApp() {
                     description="Хотите удалить рецепт из избранного? Отменить это действие будет невозможно."
                     cancelLabel="Отмена"
                     confirmLabel="Удалить"
-                    onCancel={cancelUnfavorite}
+                    onCancel={() => setPendingUnfav(null)}
                     onConfirm={confirmUnfavorite}
                 />
             )}
+
+            {pendingUncook && (
+                <ConfirmModal
+                    title="Удалить рецепт"
+                    description="Хотите удалить рецепт из списка приготовленных? Отменить это действие будет невозможно."
+                    cancelLabel="Отмена"
+                    confirmLabel="Удалить"
+                    onCancel={() => setPendingUncook(null)}
+                    onConfirm={confirmUncook}
+                />
+            )}
+
+            {ingredientsOpen && (
+                <IngredientsModal
+                    available={ALL_INGREDIENTS}
+                    initial={chosenIngredients}
+                    onClose={() => setIngredientsOpen(false)}
+                    onSave={(next) => setChosenIngredients(next)}
+                />
+            )}
+        </div>
+    )
+}
+
+/* ═══════════════════════════════════════════
+   CookedList — отдельный компонент: таблица из строк CookedRow
+   ═══════════════════════════════════════════ */
+interface CookedListProps {
+    recipes: Recipe[]
+    cooked: Record<string, number | null>
+    favorites: Set<string>
+    getRating: (id: string) => { average: number; count: number }
+    onToggleFavorite: (id: string) => void
+    onSubmitRating: (id: string, prev: number | null, next: number) => void
+    onRequestRemove: (id: string) => void
+}
+
+function CookedList({
+    recipes, cooked, favorites, getRating,
+    onToggleFavorite, onSubmitRating, onRequestRemove,
+}: CookedListProps) {
+    if (recipes.length === 0) {
+        return (
+            <div className="ck-grid__empty" role="status">
+                <span className="ck-grid__empty-icon" aria-hidden="true">🍳</span>
+                <h3 className="ck-grid__empty-title">Здесь пока пусто</h3>
+                <p className="ck-grid__empty-text">
+                    На странице рецепта нажмите «Приготовлено» — блюдо появится в этом списке,
+                    и вы сможете поставить ему оценку.
+                </p>
+            </div>
+        )
+    }
+
+    return (
+        <div className="ck-cooked-list" role="list" aria-label="Список приготовленных рецептов">
+            {recipes.map((recipe) => (
+                <div key={recipe.id} role="listitem">
+                    <CookedRow
+                        recipe={recipe}
+                        isFavorite={favorites.has(recipe.id)}
+                        userRating={cooked[recipe.id] ?? null}
+                        aggregateRating={getRating(recipe.id)}
+                        onToggleFavorite={onToggleFavorite}
+                        onSubmitRating={onSubmitRating}
+                        onRequestRemove={onRequestRemove}
+                    />
+                </div>
+            ))}
         </div>
     )
 }
