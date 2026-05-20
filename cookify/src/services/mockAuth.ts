@@ -114,8 +114,8 @@ export const mockAuth = {
             expiresAt: Date.now() + CODE_TTL_MS,
         }
         writePending(pending)
-        // В реальном проде: SMTP → письмо юзеру.
-        // eslint-disable-next-line no-console
+        // BACKEND: в проде здесь SMTP → письмо юзеру с кодом подтверждения.
+        // Мок печатает код в консоль, чтобы можно было пройти флоу при разработке.
         console.info(`[Cookify mock] Код подтверждения для ${email}: ${code}`)
         return { code }
     },
@@ -132,7 +132,7 @@ export const mockAuth = {
         entry.code = code
         entry.expiresAt = Date.now() + CODE_TTL_MS
         writePending(pending)
-        // eslint-disable-next-line no-console
+        // BACKEND: повторная отправка письма с новым кодом (rate-limit на бэке!).
         console.info(`[Cookify mock] Новый код для ${email}: ${code}`)
         return { code }
     },

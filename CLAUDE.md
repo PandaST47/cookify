@@ -61,15 +61,28 @@ src/
       useExclusions.ts       # string[] исключённых ингредиентов (per userId)
       useCooked.ts           # Set<id> приготовленных + per-recipe rating
       useRatings.ts          # средний рейтинг + кол-во оценок (per recipe)
+      useFilteredRecipes.ts  # pure-фильтрация (вся иерархия §5)
+      useDrafts.ts           # черновики формы «Загрузить рецепт» (per userId)
   pages/
     HomePage.tsx             # тонкая обёртка над <CookifyApp>
     LoginPage.tsx, RegisterPage.tsx
     ProfilePage.tsx          # avatar / fields / exclusions / change password
-  data/recipes.ts            # 30+ recipes (mock БД)
-  services/mockAuth.ts       # mock auth API (localStorage)
+    RecipePage.tsx           # Полная карточка /recipe/:id (lazy)
+    CookingModePage.tsx      # Режим готовки /recipe/:id/cook (lazy, StepTimer+Tips)
+    UploadRecipePage.tsx     # Загрузить рецепт + Черновики /recipe/new (lazy)
+  data/
+    recipes.ts               # 30+ recipes + filterGroups + sortOptions
+    recipeSteps.ts           # шаги рецептов (hero 1:1 Figma + fallback)
+  services/
+    mockAuth.ts              # mock auth API (localStorage)
+    api.ts                   # КОНТРАКТ фронт↔бэк: 6 доменов, JSDoc BACKEND:
   styles/                    # один CSS на компонент-семейство
   types/index.ts             # все типы проекта в одном файле
 ```
+
+**Правило backend-стабов:** любой новый доступ к данным проходит через
+`services/api.ts` (async-сигнатура + JSDoc `BACKEND:` с REST-эндпоинтом).
+Не разбрасывать `localStorage.*` по компонентам.
 
 ### 3.2 Shared хуки (`src/components/hooks/`)
 
@@ -84,9 +97,10 @@ src/
 
 ### 3.3 Layouts
 
-- `Header.tsx` — единый header. Поддерживает controlled/uncontrolled поиск (опц. `search` + `onSearchChange`).
+- `Header.tsx` — единый header (логотип + профиль/вход). **Без пропсов** — поиск по сайту убран; поиск рецептов живёт в тулбаре ленты.
 - `Cookify.tsx` — единый «оркестратор» главной: tabs (Рекомендации/Избранное/Приготовлено), sidebar фильтров, лента, sort, search.
-- ProfilePage / LoginPage / RegisterPage — самостоятельные страницы со своим header'ом.
+- `RecipePage` → CTA «Режим готовки» → `CookingModePage` (роут `/recipe/:id/cook`). Клик по карточке в ленте → `/recipe/:id`. «Загрузить рецепт» → `/recipe/new`.
+- ProfilePage / LoginPage / RegisterPage / Recipe* — самостоятельные страницы со своим header'ом.
 
 ---
 
@@ -100,6 +114,7 @@ src/
 | `.header__*` | header — `styles/header.css` |
 | `.profile-*`, `.profile-exclusions*` | профиль и его модалка — `styles/profile.css` |
 | `.auth-*` | формы входа/регистрации — `styles/auth.css` |
+| `.rp-*` / `.cm-*` / `.ur-*` / `.ck-timer*` / `.ck-tips*` / `.ck-step*` | Полная карточка / Режим готовки / Загрузить рецепт — `styles/recipe.css` |
 
 **Импорт:** каждая страница / компонент импортирует свой CSS напрямую (`import '@/styles/cookify.css'`). Глобально подключён только `index.css` через `main.tsx`.
 
@@ -120,7 +135,11 @@ src/
 --ck-line-strong #D1CCBF
 --ck-surface     #FFFFFF
 --ck-surface-2   #F5F3EF
+--ck-cream       #FBF5E6  фон модалок (Figma Frame 69)
 ```
+
+CSS namespace `.ck-ingmodal__*` — модалка «Добавить ингредиенты» (Frame 69),
+свой namespace (не использует базу `.ck-confirm`).
 
 **Правило:** хардкод произвольных hex — нельзя. Используй токен.
 
@@ -350,6 +369,8 @@ cook/                              # корень репо
 
 | Дата | Раздел(ы) | Что изменилось | Триггер |
 |---|---|---|---|
+| 2026-05-19 | §3.1, §3.3, §4.1, §4.2 | +3 страницы (Recipe/CookingMode/Upload, lazy) + `useDrafts` + `recipeSteps.ts` в folder map; namespace `.rp-*/.cm-*/.ur-*/.ck-timer*/.ck-tips*/.ck-step*` (`styles/recipe.css`); токен `--ck-ink-strong`; Header без пропсов | новые страницы/хук/CSS-namespace/токен (sync, #4.x) |
+| 2026-05-19 | §3.1, §4.2 | Добавлен `services/api.ts` (backend-контракт) + правило «доступ к данным через api.ts»; токен `--ck-cream` + namespace `.ck-ingmodal__*` | новый shared-модуль + новый design token (sync с реальностью кода, #2.1/#2.3) |
 | 2026-05-02 | initial | Создан CLAUDE.md (13 разделов + maintenance log) | bootstrap по запросу |
 
-**Last updated:** 2026-05-02
+**Last updated:** 2026-05-19

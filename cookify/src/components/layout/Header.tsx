@@ -1,34 +1,16 @@
-import { memo, useMemo, useState } from 'react'
+import { memo, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { Search, UtensilsCrossed } from 'lucide-react'
+import { UtensilsCrossed } from 'lucide-react'
 import { useAuth } from '@/components/contexts/AuthContext'
 import '@/styles/header.css'
 
-interface HeaderProps {
-    /**
-     * Если переданы — Header работает как controlled.
-     * Если нет (вызов `<Header />` без пропсов) — держит локальный
-     * стейт поиска. Это удобно для страниц, где поиск не нужен
-     * (профиль, авторизация) или где он изолирован от страницы.
-     */
-    search?: string
-    onSearchChange?: (value: string) => void
-}
-
-const Header = memo(function Header({
-    search: searchProp,
-    onSearchChange,
-}: HeaderProps) {
+/**
+ * Глобальный хедер: логотип + профиль / вход-регистрация.
+ * Поиск по сайту убран по требованию — поиск рецептов живёт
+ * в тулбаре ленты (Cookify.tsx), а не в хедере.
+ */
+const Header = memo(function Header() {
     const { user, isAuthenticated } = useAuth()
-
-    // Локальный fallback, если родитель не передал search/onSearchChange.
-    const [localSearch, setLocalSearch] = useState('')
-    const isControlled = searchProp !== undefined && !!onSearchChange
-    const search = isControlled ? searchProp! : localSearch
-    const handleChange = (value: string) => {
-        if (isControlled) onSearchChange!(value)
-        else setLocalSearch(value)
-    }
 
     const initial = useMemo(() => {
         if (!user) return ''
@@ -50,22 +32,6 @@ const Header = memo(function Header({
                 </Link>
 
                 <div className="header__right">
-                    <div className="header__search">
-                        <Search
-                            className="header__search-icon"
-                            aria-hidden="true"
-                        />
-                        <input
-                            type="search"
-                            value={search}
-                            onChange={(e) => handleChange(e.target.value)}
-                            placeholder="Поиск по сайту"
-                            className="header__search-input"
-                            aria-label="Поиск по сайту"
-                            autoComplete="off"
-                        />
-                    </div>
-
                     {isAuthenticated && user ? (
                         <Link
                             to="/profile"

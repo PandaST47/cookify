@@ -10,7 +10,23 @@
       "Bash(tasklist)",
       "mcp__Claude_Preview__preview_start",
       "Bash(echo \"tsc=$?\")",
-      "Bash(echo \"build=$?\")"
+      "Bash(echo \"build=$?\")",
+      "Bash(npm ls *)",
+      "Bash(node __shots/capture.mjs)",
+      "Bash(cp 'C:/WEB/project-practicum/cook/__shots/capture.mjs' 'C:/WEB/project-practicum/cook/cookify/__capture.mjs')",
+      "Bash(node __capture.mjs)",
+      "Bash(node __compress.mjs)",
+      "Bash(node __build-report.mjs)",
+      "mcp__plugin_figma_figma__whoami",
+      "mcp__plugin_figma_figma__get_metadata",
+      "Bash(node __verify.mjs)",
+      "Bash(node __check.mjs)",
+      "Bash(export FK='JXZblTM4YMOmy5jgQHfW3E')",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d, indent=2, ensure_ascii=False\\)\\)\")",
+      "Bash(mkdir -p 'C:/WEB/project-practicum/cook/__fig')",
+      "Bash(python -c ' *)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); [print\\(k,'=',v\\) for k,v in d['images'].items\\(\\)]\")",
+      "Bash(node __resp.mjs)"
     ]
   }
 }

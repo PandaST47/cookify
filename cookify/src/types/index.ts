@@ -35,6 +35,11 @@ export interface Recipe {
     /** Машиночитаемые ID-теги по группам — drives `applyFilters`. */
     filters: RecipeFilters
     ingredients: Ingredient[]
+    /**
+     * Пошаговая инструкция (для Полной карточки + Режима готовки).
+     * Если пусто/нет — «Режим готовки» недоступен (кнопка disabled).
+     */
+    steps?: RecipeStep[]
 }
 
 export interface Ingredient {
@@ -43,11 +48,49 @@ export interface Ingredient {
     unit?: string
 }
 
+/** Один этап приготовления (Figma «Component 12» / «Шаг N из M»). */
+export interface RecipeStep {
+    /** Что делать на этапе (обязательно). */
+    text: string
+    /** Таймер этапа в секундах (обязательно по ТЗ; 0 = без таймера). */
+    timerSeconds: number
+    /** Пояснение сложных терминов (необязательно). */
+    tip?: string
+    /** Предупреждение о типичных ошибках (необязательно). */
+    warning?: string
+    /** Фото этапа (необязательно; иначе fallback). */
+    image?: string
+}
+
+/* ── Черновики рецептов (форма «Загрузить рецепт») ── */
+export interface RecipeDraft {
+    id: string
+    title: string
+    description: string
+    image?: string
+    cookTime: string // формат «чч:мм» как в ТЗ
+    calories: string
+    protein: string
+    fat: string
+    carbs: string
+    ingredients: Ingredient[]
+    tags: string[]
+    steps: RecipeStep[]
+    /** Статус «уже готовили / новое» — по ТЗ автор указывает. */
+    cookedStatus: 'new' | 'cooked'
+    updatedAt: string
+}
+
 export interface FilterGroup {
     id: FilterGroupId
     title: string
     options: FilterOption[]
     isOpen: boolean
+    /**
+     * Если задано — показываем первые N опций, остальные прячем
+     * под кнопку «Показать ещё» (как в Figma «Праздники»).
+     */
+    showMoreAfter?: number
 }
 
 export interface FilterOption {

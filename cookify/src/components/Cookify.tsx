@@ -3,6 +3,7 @@ import {
     type KeyboardEvent as ReactKeyboardEvent,
 } from 'react'
 import { createPortal } from 'react-dom'
+import { useNavigate } from 'react-router-dom'
 import {
     Search, Heart, Star, ChevronDown, ChevronUp, ArrowUp,
     SlidersHorizontal, ArrowUpDown, ArrowRight, Check, X, Trash2, Plus,
@@ -142,9 +143,29 @@ const RecipeCard = memo(function RecipeCard({
     showCookButton = true,
 }: RecipeCardProps) {
     const [imgErr, setImgErr] = useState(false)
+    const navigate = useNavigate()
+
+    // Клик по карточке → Полная карточка рецепта (ТЗ). Внутренние
+    // кнопки (избранное/ингредиенты/приготовлено) делают stopPropagation,
+    // поэтому сюда не доходят. Доступно с клавиатуры (Enter/Space).
+    const openRecipe = () => navigate(`/recipe/${recipe.id}`)
+    const onCardKey = (e: ReactKeyboardEvent<HTMLElement>) => {
+        if (e.target !== e.currentTarget) return
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            openRecipe()
+        }
+    }
 
     return (
-        <article className="ck-card" aria-labelledby={`recipe-${recipe.id}-title`}>
+        <article
+            className="ck-card ck-card--clickable"
+            aria-labelledby={`recipe-${recipe.id}-title`}
+            role="link"
+            tabIndex={0}
+            onClick={openRecipe}
+            onKeyDown={onCardKey}
+        >
             <div className="ck-card__media">
                 {!imgErr ? (
                     <img
@@ -320,21 +341,65 @@ const CookedRow = memo(function CookedRow({
     onToggleFavorite, onSubmitRating, onRequestRemove,
 }: CookedRowProps) {
     const [draftRating, setDraftRating] = useState<number | null>(userRating)
+    /** Шкала интерактивна + показываем кнопку «Отправить оценку». */
     const [editing, setEditing] = useState(userRating === null)
+    /**
+     * Транзиентное состояние сразу после отправки: показываем «Спасибо!»
+     * без кнопки (Figma «Оценить рецепт» state 2). Через ~1.8 c переходит
+     * в персистентное «Ваша оценка» + «Изменить оценку» (state 3).
+     */
+    const [justSubmitted, setJustSubmitted] = useState(false)
+    const thanksTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-    // Если оценка извне поменялась (например, импорт из другого таба), синкаем
-    useEffect(() => {
+    /**
+     * Синк с внешним стейтом (смена рецепта / удаление / cross-tab):
+     * паттерн React «adjust state during render» вместо setState-в-effect
+     * (последнее триггерит каскадные ре-рендеры — eslint react-hooks).
+     * @see https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
+     */
+    const [syncedRating, setSyncedRating] = useState(userRating)
+    if (userRating !== syncedRating) {
+        setSyncedRating(userRating)
         setDraftRating(userRating)
         setEditing(userRating === null)
-    }, [userRating])
+        setJustSubmitted(false)
+    }
 
-    const canSubmit = editing && draftRating !== null && draftRating !== userRating
+    // Чистим таймер «Спасибо!» при размонтировании.
+    useEffect(() => () => {
+        if (thanksTimer.current) clearTimeout(thanksTimer.current)
+    }, [])
+
+    const canSubmit = editing && draftRating !== null
 
     const handleSubmit = () => {
         if (draftRating === null) return
         onSubmitRating(recipe.id, userRating, draftRating)
         setEditing(false)
+        setJustSubmitted(true)
+        // Предсинхронизируем: после onSubmitRating родитель пришлёт новый
+        // userRating === draftRating. Если не обновить syncedRating здесь,
+        // render-time guard ниже посчитает это «внешним» изменением и
+        // сбросит justSubmitted → «Спасибо!» не успеет показаться.
+        setSyncedRating(draftRating)
+        if (thanksTimer.current) clearTimeout(thanksTimer.current)
+        thanksTimer.current = setTimeout(() => setJustSubmitted(false), 1800)
     }
+
+    const handleStarChange = (v: number) => {
+        setDraftRating(v)
+        setEditing(true)
+        setJustSubmitted(false)
+    }
+
+    const handleEdit = () => {
+        setEditing(true)
+        setJustSubmitted(false)
+    }
+
+    // Заголовок: персистентная оценка → «Ваша оценка»; иначе «Оценить рецепт?».
+    const ratePersisted = userRating !== null && !justSubmitted && !editing
+    const rateTitle = ratePersisted ? 'Ваша оценка' : 'Оценить рецепт?'
 
     return (
         <article className="ck-cooked-row" aria-labelledby={`cooked-${recipe.id}-title`}>
@@ -351,20 +416,22 @@ const CookedRow = memo(function CookedRow({
             </div>
 
             <div className="ck-cooked-row__rate">
-                <h4 className="ck-cooked-row__rate-title">
-                    {userRating === null ? 'Оценить рецепт?' : 'Ваша оценка'}
-                </h4>
+                <h4 className="ck-cooked-row__rate-title">{rateTitle}</h4>
                 <div className="ck-cooked-row__rate-row">
                     <StarRating
                         value={draftRating}
-                        onChange={(v) => { setDraftRating(v); setEditing(true) }}
+                        onChange={handleStarChange}
                         readOnly={!editing}
                     />
-                    {!editing && userRating !== null ? (
+                    {justSubmitted ? (
+                        <p className="ck-cooked-row__thanks" role="status">
+                            Спасибо!
+                        </p>
+                    ) : ratePersisted ? (
                         <button
                             type="button"
                             className="ck-cooked-row__btn"
-                            onClick={() => setEditing(true)}
+                            onClick={handleEdit}
                         >
                             Изменить оценку
                         </button>
@@ -379,9 +446,6 @@ const CookedRow = memo(function CookedRow({
                         </button>
                     )}
                 </div>
-                {!editing && userRating !== null && (
-                    <p className="ck-cooked-row__thanks" role="status">Спасибо!</p>
-                )}
             </div>
 
             <div className="ck-cooked-row__agg">
@@ -430,9 +494,15 @@ const FilterSidebar = memo(function FilterSidebar({
     selected, onToggle, onApply, onReset, isOpen, onClose,
 }: FilterSidebarProps) {
     const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
+    /** Группы, у которых пользователь нажал «Показать ещё» (раскрыт весь список). */
+    const [expanded, setExpanded] = useState<Record<string, boolean>>({})
 
     const toggleGroup = useCallback((id: string) => {
         setCollapsed((p) => ({ ...p, [id]: !p[id] }))
+    }, [])
+
+    const toggleExpanded = useCallback((id: string) => {
+        setExpanded((p) => ({ ...p, [id]: !p[id] }))
     }, [])
 
     useEffect(() => {
@@ -498,26 +568,53 @@ const FilterSidebar = memo(function FilterSidebar({
                                             role="group"
                                             aria-labelledby={groupId}
                                         >
-                                            {g.options.map((o) => {
-                                                const checked = !!selected[g.id]?.includes(o.id)
+                                            {(() => {
+                                                const isExpanded = expanded[g.id] ?? false
+                                                const limit =
+                                                    g.showMoreAfter != null && !isExpanded
+                                                        ? g.showMoreAfter
+                                                        : g.options.length
+                                                const visible = g.options.slice(0, limit)
+                                                const hiddenCount =
+                                                    g.options.length - visible.length
                                                 return (
-                                                    <label key={o.id} className="ck-foption">
-                                                        <input
-                                                            type="checkbox"
-                                                            className="ck-foption__input"
-                                                            checked={checked}
-                                                            onChange={() => onToggle(g.id, o.id)}
-                                                        />
-                                                        <span
-                                                            className={`ck-foption__box ${checked ? 'ck-foption__box--on' : ''}`}
-                                                            aria-hidden="true"
-                                                        >
-                                                            {checked && <Check size={12} color="#fff" />}
-                                                        </span>
-                                                        <span className="ck-foption__label">{o.label}</span>
-                                                    </label>
+                                                    <>
+                                                        {visible.map((o) => {
+                                                            const checked = !!selected[g.id]?.includes(o.id)
+                                                            return (
+                                                                <label key={o.id} className="ck-foption">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        className="ck-foption__input"
+                                                                        checked={checked}
+                                                                        onChange={() => onToggle(g.id, o.id)}
+                                                                    />
+                                                                    <span
+                                                                        className={`ck-foption__box ${checked ? 'ck-foption__box--on' : ''}`}
+                                                                        aria-hidden="true"
+                                                                    >
+                                                                        {checked && <Check size={12} color="#fff" />}
+                                                                    </span>
+                                                                    <span className="ck-foption__label">{o.label}</span>
+                                                                </label>
+                                                            )
+                                                        })}
+                                                        {g.showMoreAfter != null &&
+                                                            (hiddenCount > 0 || isExpanded) && (
+                                                            <button
+                                                                type="button"
+                                                                className="ck-show-more"
+                                                                onClick={() => toggleExpanded(g.id)}
+                                                                aria-expanded={isExpanded}
+                                                            >
+                                                                {isExpanded
+                                                                    ? 'Скрыть'
+                                                                    : `Показать ещё (${hiddenCount})`}
+                                                            </button>
+                                                        )}
+                                                    </>
                                                 )
-                                            })}
+                                            })()}
                                         </div>
                                     )}
                                 </div>
@@ -639,9 +736,24 @@ interface IngredientsModalProps {
 const IngredientsModal = memo(function IngredientsModal({
     available, initial, onClose, onSave,
 }: IngredientsModalProps) {
+    const dialogRef = useRef<HTMLDivElement>(null)
+
+    /** Парсим строку «через запятую» → канонические имена (без учёта регистра). */
+    const parseTokens = useCallback(
+        (str: string): string[] => {
+            const tokens = str.split(',').map((t) => t.trim()).filter(Boolean)
+            return tokens.map((t) => {
+                const match = available.find(
+                    (a) => a.toLowerCase() === t.toLowerCase(),
+                )
+                return match ?? t
+            })
+        },
+        [available],
+    )
+
     const [text, setText] = useState(initial.join(','))
     const [draft, setDraft] = useState<Set<string>>(() => new Set(initial))
-    const dialogRef = useRef<HTMLDivElement>(null)
 
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
@@ -657,23 +769,13 @@ const IngredientsModal = memo(function IngredientsModal({
         }
     }, [onClose])
 
-    /** Парсим введённый текст: запятые → массив имён. Без учёта регистра. */
-    const recognized = useMemo(() => {
-        const tokens = text.split(',').map((t) => t.trim()).filter(Boolean)
-        // нормализуем к каноническому виду (как в available), если совпадает
-        return tokens.map((t) => {
-            const match = available.find(
-                (a) => a.toLowerCase() === t.toLowerCase(),
-            )
-            return match ?? t
-        })
-    }, [text, available])
+    /** Ввод текста → сразу пересобираем draft (без эффекта-синка). */
+    const handleTextChange = (value: string) => {
+        setText(value)
+        setDraft(new Set(parseTokens(value)))
+    }
 
-    /** Когда меняется текст — синхронизируем draft. */
-    useEffect(() => {
-        setDraft(new Set(recognized))
-    }, [recognized])
-
+    /** Чекбокс: только меняем выбор, текст не трогаем (raw input ≠ выбор). */
     const toggle = (item: string) => {
         setDraft((prev) => {
             const next = new Set(prev)
@@ -689,41 +791,45 @@ const IngredientsModal = memo(function IngredientsModal({
     }
 
     return createPortal(
+        // Frame 69 «Добавить ингредиенты»: кремовая карточка, крупный
+        // радиус, поле-pill, чекбоксы, «Сохранить» справа-снизу.
         <div className="ck-confirm-backdrop" role="presentation" onClick={onClose}>
             <div
                 ref={dialogRef}
-                className="ck-confirm ck-confirm--wide"
+                className="ck-ingmodal"
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="ck-ingmodal-title"
                 aria-describedby="ck-ingmodal-desc"
                 onClick={(e) => e.stopPropagation()}
             >
+                {/* Деталь a11y (отсутствует в Figma Frame 69, но нужна для
+                    WCAG 2.2 — закрытие без мыши): крестик + Esc + клик по фону. */}
                 <button
                     type="button"
-                    className="ck-confirm__close"
+                    className="ck-ingmodal__close"
                     onClick={onClose}
                     aria-label="Закрыть"
                 >
                     <X size={18} aria-hidden="true" />
                 </button>
 
-                <h2 id="ck-ingmodal-title" className="ck-confirm__title">
+                <h2 id="ck-ingmodal-title" className="ck-ingmodal__title">
                     Добавить ингредиенты
                 </h2>
-                <p id="ck-ingmodal-desc" className="ck-confirm__desc">
+                <p id="ck-ingmodal-desc" className="ck-ingmodal__desc">
                     Введите продукты, которые хотите использовать в блюде.
-                    Названия продуктов вводите через запятую без пробелов после неё.
+                    Названия продуктов вводите через запятую без пробелов.
                 </p>
 
                 <p className="ck-ingmodal__hint">
-                    Например, «Красная рыба,томат,базилик»
+                    Например, «Красная&nbsp;рыба,томат,базилик»
                 </p>
                 <input
                     type="search"
                     className="ck-ingmodal__input"
                     value={text}
-                    onChange={(e) => setText(e.target.value)}
+                    onChange={(e) => handleTextChange(e.target.value)}
                     placeholder="Поиск рецептов"
                     aria-label="Список ингредиентов через запятую"
                     autoComplete="off"
@@ -733,7 +839,7 @@ const IngredientsModal = memo(function IngredientsModal({
                 <h3 className="ck-ingmodal__subtitle">Используемые продукты</h3>
                 {draft.size === 0 ? (
                     <p className="ck-ingmodal__empty">
-                        Введите ингредиенты выше или выберите из подсказок ниже.
+                        Введите ингредиенты выше или раскройте подсказки ниже.
                     </p>
                 ) : (
                     <ul className="ck-ingmodal__list" role="list">
@@ -750,7 +856,7 @@ const IngredientsModal = memo(function IngredientsModal({
                                         className="ck-ingmodal__opt-box ck-ingmodal__opt-box--on"
                                         aria-hidden="true"
                                     >
-                                        <Check size={12} color="#fff" />
+                                        <Check size={13} color="#fff" strokeWidth={3} />
                                     </span>
                                     <span className="ck-ingmodal__opt-label">{item}</span>
                                 </label>
@@ -777,7 +883,7 @@ const IngredientsModal = memo(function IngredientsModal({
                                             className={`ck-ingmodal__opt-box ${checked ? 'ck-ingmodal__opt-box--on' : ''}`}
                                             aria-hidden="true"
                                         >
-                                            {checked && <Check size={12} color="#fff" />}
+                                            {checked && <Check size={13} color="#fff" strokeWidth={3} />}
                                         </span>
                                         <span className="ck-ingmodal__opt-label">{item}</span>
                                     </label>
@@ -788,20 +894,13 @@ const IngredientsModal = memo(function IngredientsModal({
                 </details>
 
                 <p className="ck-ingmodal__footnote">
-                    Проверьте правильность списка и нажмите кнопку «Сохранить».
+                    Проверьте правильность списка и нажмите кнопку «Сохранить»
                 </p>
 
-                <div className="ck-confirm__actions">
+                <div className="ck-ingmodal__actions">
                     <button
                         type="button"
-                        className="ck-confirm__btn ck-confirm__btn--ghost"
-                        onClick={onClose}
-                    >
-                        Отмена
-                    </button>
-                    <button
-                        type="button"
-                        className="ck-confirm__btn ck-confirm__btn--primary"
+                        className="ck-ingmodal__save"
                         onClick={handleSave}
                     >
                         Сохранить
@@ -818,8 +917,9 @@ const IngredientsModal = memo(function IngredientsModal({
    ═══════════════════════════════════════════ */
 export default function CookifyApp() {
     const { user } = useAuth()
+    const navigate = useNavigate()
     const [activeTab, setActiveTab] = useState<TabId>('recommendations')
-    const [search, setSearch] = useState('')
+    /** Поиск рецептов — единственный (поиск по сайту в Header убран). */
     const [recipeSearch, setRecipeSearch] = useState('')
     const [sidebarOpen, setSidebarOpen] = useState(false)
     const [sortOpen, setSortOpen] = useState(false)
@@ -916,7 +1016,7 @@ export default function CookifyApp() {
         chosenIngredients,
         excludedIngredients: exclusions,
         sidebarFilters: selectedFilters,
-        search: search || recipeSearch,
+        search: recipeSearch,
         sortBy,
         ratingFor: getRating,
     })
@@ -939,7 +1039,7 @@ export default function CookifyApp() {
 
     return (
         <div className="ck-page">
-            <Header search={search} onSearchChange={setSearch} />
+            <Header />
 
             <nav className="ck-tabs" aria-label="Основная навигация">
                 <div className="ck-tabs__inner">
@@ -993,8 +1093,8 @@ export default function CookifyApp() {
                                 <button
                                     type="button"
                                     className="ck-upload-btn"
-                                    aria-label="Загрузить рецепт (скоро)"
-                                    title="Скоро"
+                                    aria-label="Загрузить рецепт"
+                                    onClick={() => navigate('/recipe/new')}
                                 >
                                     Загрузить рецепт
                                     <ArrowRight size={16} aria-hidden="true" />
@@ -1053,19 +1153,31 @@ export default function CookifyApp() {
                                                 onClick={() => setSortOpen(false)}
                                                 aria-hidden="true"
                                             />
-                                            <div className="ck-sort__menu" role="listbox">
-                                                {SORT_OPTIONS.map((opt) => (
-                                                    <button
-                                                        key={opt.id}
-                                                        type="button"
-                                                        className={`ck-sort__opt ${sortBy === opt.id ? 'ck-sort__opt--active' : ''}`}
-                                                        role="option"
-                                                        aria-selected={sortBy === opt.id}
-                                                        onClick={() => { setSortBy(opt.id); setSortOpen(false) }}
-                                                    >
-                                                        {opt.label}
-                                                    </button>
-                                                ))}
+                                            <div
+                                                className="ck-sort__menu"
+                                                role="radiogroup"
+                                                aria-label="Показать сначала"
+                                            >
+                                                <p className="ck-sort__title">Показать сначала</p>
+                                                {SORT_OPTIONS.map((opt) => {
+                                                    const active = sortBy === opt.id
+                                                    return (
+                                                        <button
+                                                            key={opt.id}
+                                                            type="button"
+                                                            className={`ck-sort__opt ${active ? 'ck-sort__opt--active' : ''}`}
+                                                            role="radio"
+                                                            aria-checked={active}
+                                                            onClick={() => { setSortBy(opt.id); setSortOpen(false) }}
+                                                        >
+                                                            <span
+                                                                className={`ck-sort__radio ${active ? 'ck-sort__radio--on' : ''}`}
+                                                                aria-hidden="true"
+                                                            />
+                                                            {opt.label}
+                                                        </button>
+                                                    )
+                                                })}
                                             </div>
                                         </>
                                     )}

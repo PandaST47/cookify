@@ -86,60 +86,8 @@
     min-width: 0;
 }
 
-/* ── Search ── */
-.header__search {
-    position: relative;
-    display: none;
-}
-
-@media (min-width: 768px) {
-    .header__search { display: block; width: 280px; }
-}
-
-@media (min-width: 1024px) {
-    .header__search { width: 340px; }
-}
-
-.header__search-icon {
-    position: absolute;
-    left: 1rem;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 18px;
-    height: 18px;
-    color: #9C9585;
-    pointer-events: none;
-    transition: color 0.25s ease;
-}
-
-.header__search-input {
-    width: 100%;
-    padding: 0.65rem 1rem 0.65rem 2.75rem;
-    background-color: #F5F3EF;
-    border: 1.5px solid #E8E4DD;
-    border-radius: 9999px;
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: #2C1605;
-    font-family: inherit;
-    transition: all 0.3s ease;
-}
-
-.header__search-input::placeholder { color: #9C9585; }
-
-.header__search-input:hover {
-    border-color: #D1CCBF;
-    background-color: #FDFCF8;
-}
-
-.header__search-input:focus {
-    outline: none;
-    border-color: #E47809;
-    background-color: #FFFFFF;
-    box-shadow: 0 0 0 3px rgba(228, 120, 9, 0.12);
-}
-
-.header__search:focus-within .header__search-icon { color: #E47809; }
+/* Поиск по сайту удалён из хедера по требованию — поиск рецептов
+   живёт в тулбаре ленты (Cookify.tsx, .ck-toolbar__search). */
 
 /* ═══════════════════════════════════════════════════════════
    Auth-aware блоки: либо ссылки Вход/Регистрация, либо профиль

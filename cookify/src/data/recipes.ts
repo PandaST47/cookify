@@ -39,11 +39,16 @@ export const filterGroups: FilterGroup[] = [
         id: 'occasions',
         title: 'Праздники',
         isOpen: true,
+        // Первые 4 опции видны сразу, остальные — под «Показать ещё»
+        // (повторяет паттерн из Figma «Праздники» → ссылка «Показать ещё»).
+        showMoreAfter: 4,
         options: [
             { id: 'easter', label: 'Пасха', checked: false },
             { id: 'maslenitsa', label: 'Масленица', checked: false },
             { id: 'birthday', label: 'День рождения', checked: false },
             { id: 'newyear', label: 'Новый год', checked: false },
+            { id: 'christmas', label: 'Рождество', checked: false },
+            { id: 'otherHoliday', label: 'Другой праздник', checked: false },
         ],
     },
     {
@@ -103,8 +108,8 @@ export const sortOptions: { id: SortId; label: string }[] = [
     { id: 'rating_asc', label: 'Ниже рейтинг' },
     { id: 'calories_asc', label: 'По возрастанию КБЖУ' },
     { id: 'calories_desc', label: 'По убыванию КБЖУ' },
-    { id: 'time_asc', label: 'По времени ↑ (быстрые)' },
-    { id: 'time_desc', label: 'По времени ↓ (длительные)' },
+    { id: 'time_asc', label: 'По времени ↑ (сначала быстрые)' },
+    { id: 'time_desc', label: 'По времени ↓ (сначала длительные)' },
 ]
 
 /* ─── Helper: build image URL from Unsplash photo ID ─────────── */
@@ -462,7 +467,7 @@ export const recipes: Recipe[] = [
         displayTags: ['ИТАЛЬЯНСКАЯ', 'УЖИН', 'ПРАЗДНИК'],
         filters: {
             mealType: ['dinner'],
-            occasions: ['birthday'],
+            occasions: ['birthday', 'otherHoliday'],
             health: ['highProtein'],
             cuisine: ['italian'],
             taste: ['salty'],
@@ -516,7 +521,7 @@ export const recipes: Recipe[] = [
         displayTags: ['ГРУЗИНСКАЯ', 'УЖИН', 'ПРАЗДНИК'],
         filters: {
             mealType: ['lunch', 'dinner'],
-            occasions: ['birthday'],
+            occasions: ['birthday', 'otherHoliday'],
             health: ['vegetarian', 'highProtein'],
             cuisine: ['georgian'],
             taste: ['salty'],
@@ -592,7 +597,7 @@ export const recipes: Recipe[] = [
         displayTags: ['РУССКАЯ', 'НОВЫЙ ГОД', 'ПРАЗДНИК'],
         filters: {
             mealType: ['lunch', 'dinner'],
-            occasions: ['newyear', 'birthday'],
+            occasions: ['newyear', 'birthday', 'christmas'],
             health: [],
             cuisine: ['russian'],
             taste: ['salty'],
@@ -619,7 +624,7 @@ export const recipes: Recipe[] = [
         displayTags: ['РУССКАЯ', 'НОВЫЙ ГОД', 'ПРАЗДНИК'],
         filters: {
             mealType: ['lunch', 'dinner'],
-            occasions: ['newyear'],
+            occasions: ['newyear', 'christmas'],
             health: ['highProtein'],
             cuisine: ['russian'],
             taste: ['salty'],
@@ -977,7 +982,7 @@ export const recipes: Recipe[] = [
         displayTags: ['РУССКАЯ', 'ДЕСЕРТЫ', 'ПРАЗДНИК'],
         filters: {
             mealType: ['tea'],
-            occasions: ['birthday', 'newyear'],
+            occasions: ['birthday', 'newyear', 'christmas'],
             health: ['vegetarian'],
             cuisine: ['russian'],
             taste: ['sweet'],

@@ -150,7 +150,7 @@ export default function ProfilePage() {
 
     return (
         <>
-            <Header search="" onSearchChange={() => {}} />
+            <Header />
 
             <div className="profile-page">
                 <main className="profile-container" role="main">
